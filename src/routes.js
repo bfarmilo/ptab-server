@@ -57,20 +57,19 @@ const setListener = (connection) => {
 }
 
 router.get('/connect', (req, res) => {
-  if (req.query.db === 'azure') {
-    localMode = false;
-    if (clientActive) {
-      client.quit()
-    } 
-    client = startClient()
-      .then(() => res.send('connecting to azure redis instance'))
-      .catch(err => console.error(err))
-  }
-  localMode = true;
-  if (clientActive) client.quit()
-  client = startClient()
-    .then(() => res.send('connecting to local redis instance'))
-    .catch(err => console.error(err))
+  try {
+    if (req.query.db === 'azure') {
+      localMode = false;
+      if (clientActive) client.quit();
+      client = startClient();
+      res.send('connecting to azure redis instance');
+    } else {
+      localMode = true;
+      if (clientActive) client.quit();
+      client = startClient();
+      res.send('connecting to local redis instance');
+    }
+  } catch (err) { res.send(err) }
 })
 
 // check redis DB, initialize if req'd
