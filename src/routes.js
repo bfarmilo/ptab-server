@@ -7,7 +7,7 @@ const { getDetailTable } = require('./survivaldetail/getDetailTable.js');
 const { survivalAnalysis } = require('./survival/QRYsurvival.js');
 const { initDB } = require('./initialize/LoadDB.js');
 const { getEntityData } = require('./entities/QRYtypes.js');
-const config = require('./config/config.json');
+const config = require('../config/config.json');
 
 let client; // need this global for the other functions to re-use
 let clientActive = false;
@@ -59,14 +59,16 @@ const setListener = (connection) => {
 router.get('/connect', (req, res) => {
   if (req.query.db === 'azure') {
     localMode = false;
-    client.quit()
-    .then(() => client = startClient())
-    .then(() => res.send('connecting to azure redis instance'))
-    .catch(err => console.error(err))
+    if (clientActive) {
+      client.quit()
+    } 
+    client = startClient()
+      .then(() => res.send('connecting to azure redis instance'))
+      .catch(err => console.error(err))
   }
-    localMode = true;
-    client.quit()
-    .then(() => client = startClient())
+  localMode = true;
+  if (clientActive) client.quit()
+  client = startClient()
     .then(() => res.send('connecting to local redis instance'))
     .catch(err => console.error(err))
 })

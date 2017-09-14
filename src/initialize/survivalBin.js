@@ -33,4 +33,4 @@ const survivalStatus = (status, fwdStatus, instituted, invalid) => {
   return '6_unbinned';
 }
 
-export default survivalStatus;
+module.exports = {survivalStatus};
