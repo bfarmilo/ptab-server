@@ -9,6 +9,7 @@
   },
   "author": "",
   "license": "ISC",
+  "engines" : {"node":"8.4.0"},
   "dependencies": {
     "express": "^4.15.4",
     "promise-redis": "0.0.5"
