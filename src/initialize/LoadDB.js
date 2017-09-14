@@ -39,7 +39,7 @@ const initDB = (client) => {
           ['sadd', 'statusTypes', item.Status],
           ['sadd', 'FWDStatusTypes', item.FWDStatus.toLowerCase()],
           ['sadd', `FWDStatus:${item.FWDStatus.toLowerCase()}`, `claimID:${index}`],
-          ['sadd', `patent:${item.Patent}:${item.Claim}`, `claimID:${index}`]
+          // ['sadd', `patent:${item.Patent}:${item.Claim}`, `claimID:${index}`]
         ];
         // a zset of killed claims - score is the ID
         if (item.FWDStatus.toLowerCase() === 'unpatentable') {

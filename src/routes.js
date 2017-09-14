@@ -23,11 +23,11 @@ const searchableSet = [
 ];
 
 const startClient = () => {
-  let client;
+  let startclient;
   if (localMode) {
-    client = redis.createClient();
+    startclient = redis.createClient();
   } else {
-    client = redis.createClient(
+    startclient = redis.createClient(
       6380,
       config.database.server,
       {
@@ -38,8 +38,8 @@ const startClient = () => {
       }
     )
   }
-  setListener(client);
-  return client;
+  setListener(startclient);
+  return startclient;
 };
 
 const setListener = (connection) => {
@@ -60,12 +60,13 @@ router.get('/connect', (req, res) => {
   try {
     if (req.query.db === 'azure') {
       localMode = false;
-      if (clientActive) client.quit();
+      //if (clientActive) client.quit();
       client = startClient();
-      res.send('connecting to azure redis instance');
+      client.info()
+      .then(result => res.send(result))
     } else {
       localMode = true;
-      if (clientActive) client.quit();
+      //if (clientActive) client.quit();
       client = startClient();
       res.send('connecting to local redis instance');
     }
@@ -90,7 +91,6 @@ router.get('/reset', (req, res, next) => {
 router.get('/run', function (req, res, next) {
   if (!clientActive) client = startClient();
   find.setClient(client);
-  console.log(req.query);
   find.lookUp(req.query.field, req.query.value, req.query.cursor, decodeURIComponent(req.query.table))
     .then(result => {
       console.log('%d results returned', result.count)
@@ -104,9 +104,7 @@ router.get('/run', function (req, res, next) {
 router.get('/fields', function (req, res, next) {
   if (!clientActive) client = startClient();
   client.smembers('fieldList')
-    .then((result) => {
-      res.json(result)
-    })
+    .then((result) => res.json(result))
     .catch(err => console.error(err));
 });
 
