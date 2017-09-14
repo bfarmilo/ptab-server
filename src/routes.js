@@ -11,7 +11,7 @@ const config = require('../config/config.json');
 
 let client; // need this global for the other functions to re-use
 let clientActive = false;
-let localMode = true;
+let localMode = false;
 
 // these are namespaces that you can use to select a graph to view
 const searchableSet = [
