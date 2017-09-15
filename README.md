@@ -8,14 +8,14 @@ An API endpoint which acts as middleware between a Redis store of PTAB IPR data 
 
 ## Endpoints
 
-`/run`: gets the table, takes user (number), 
-`/tables` user => array of searchable tables
-`/fields` user => array of searchable fields
-`/survival` user, table, chart =>
-`/connect` user, db ('local' or 'azure') => result of a client.info call
-`/reset` user => 'ok'
-`/multiedit` -- not enabled
-`/survivaldetail` user, table, cursor => 
+- `/run`: gets the table, takes user (number), 
+- `/tables` user => array of searchable tables
+- `/fields` user => array of searchable fields
+- `/survival` user, table, chart =>
+- `/connect` user, db ('local' or 'azure') => result of a client.info call
+- `/reset` user => 'ok'
+- `/multiedit` -- not enabled
+- `/survivaldetail` user, table, cursor => 
 
 ### ToDo
 
