@@ -5,6 +5,9 @@ const { survivalStatus } = require('./survivalBin.js');
 
 const initDB = (client) => {
   return client.multi()
+    // set client timeouts to 10 minutes of idleness
+    .config(['timeout', 600])
+    
     // push list of binValues
     .sadd(['binValues', ...config.survivalStatus])
 
