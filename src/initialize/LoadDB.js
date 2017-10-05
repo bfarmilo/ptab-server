@@ -4,20 +4,20 @@ const config = require('../../config/config.json');
 const { survivalStatus } = require('./survivalBin.js');
 
 const initDB = (client) => {
-  return client.multi()
-    // set client timeouts to 10 minutes of idleness
-    .config(['timeout', 600])
-    
-    // push list of binValues
-    .sadd(['binValues', ...config.survivalStatus])
+  // set client timeouts to 10 minutes of idleness
+  return client.config('SET', 'timeout', '600')
 
-    // push list of keys
-    .sadd(['fieldList'].concat(Object.keys(dataSet[0])))
+    .then(() => client.multi()
+      // push list of binValues
+      .sadd(['binValues', ...config.survivalStatus])
 
-    //push list of searchable tables
-    .sadd(['searchable', 'all', 'killed:300', 'killed:700', 'killed:electronics', 'temp:killed', 'temp:unpat', 'temp:unpat_claim'])
+      // push list of keys
+      .sadd(['fieldList'].concat(Object.keys(dataSet[0])))
 
-    .exec()
+      //push list of searchable tables
+      .sadd(['searchable', 'all', 'killed:300', 'killed:700', 'killed:electronics', 'temp:killed', 'temp:unpat', 'temp:unpat_claim'])
+
+      .exec())
     .then(() => {
       const output = dataSet.map((item, index) => {
         const survivalValue = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid)
