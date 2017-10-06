@@ -12,7 +12,7 @@ const initDB = (client) => {
       .sadd(['binValues', ...config.survivalStatus])
 
       // push list of keys
-      .sadd(['fieldList'].concat(Object.keys(dataSet[0])))
+      .sadd(['fieldList', 'IPR', 'DateFiled', 'Status','FWDStatus', 'Petitioner', 'PatentOwner', 'Patent', 'MainUSPC', 'Claim', 'Instituted', 'Invalid', 'survivalStatus'])
 
       //push list of searchable tables
       .sadd(['searchable', 'all', 'killed:300', 'killed:700', 'killed:electronics', 'temp:killed', 'temp:unpat', 'temp:unpat_claim'])
