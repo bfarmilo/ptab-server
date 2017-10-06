@@ -5,9 +5,9 @@ const { survivalStatus } = require('./survivalBin.js');
 
 const initDB = (client) => {
   // set client timeouts to 10 minutes of idleness
-  return client.config('SET', 'timeout', '600')
+  return /* client.config('SET', 'timeout', '600')
 
-    .then(() => client.multi()
+    .then(() =>  */client.multi()
       // push list of binValues
       .sadd(['binValues', ...config.survivalStatus])
 
@@ -17,7 +17,8 @@ const initDB = (client) => {
       //push list of searchable tables
       .sadd(['searchable', 'all', 'killed:300', 'killed:700', 'killed:electronics', 'temp:killed', 'temp:unpat', 'temp:unpat_claim'])
 
-      .exec())
+      .exec()
+      //)
     .then(() => {
       const output = dataSet.map((item, index) => {
         const survivalValue = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid)
