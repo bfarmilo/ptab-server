@@ -1,4 +1,4 @@
-const { connect } = require('./connectMongo');
+const { connect, setStatus } = require('./connectMongo');
 
 let db, collection;
 
@@ -9,13 +9,14 @@ connect()
     return;
   })
   .then(() => {
-    return collection.find({}).toArray();
+    return setStatus(collection, "IPR", "IPR2015-00759");
   })
   .then(result => {
-    let unique = new Set(result.map(item => `${item.Patent}:${item.Claim}`));
-    console.log(unique.size);
-    return;
+    return collection.find({IPR: "IPR2015-00759"}).toArray()
+/*     let unique = new Set(result.map(item => `${item.Patent}:${item.Claim}`));
+    console.log(unique.size); */
   })
+  .then(result => console.log(result))
   .then(() => db.close())
   .catch(err => {
     console.error(err);
