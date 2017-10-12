@@ -5,7 +5,7 @@ const url = require('../../config/config.json').database.mongoUrl;
 const connect = () => MongoClient.connect(url)
   .then(database => {
     console.info("connected to server");
-    return Promise.resolve({ db: database, collection: database.collection('ptab') });
+    return Promise.resolve(database);
   })
   .catch(err => {
     return Promise.reject(err);
@@ -67,6 +67,13 @@ const fixDate = coll => {
 // create a document of Status types and an index
 
 // create a document of FWDStatus Types (convert to lower case) and an index
+const makeFWDStatus = coll => {
+  return coll.find({}).toArray()
+  .then(result => new Set (result.map(item => item.FWDStatus)))
+  .then(FWDList => Promise.resolve(FWDList))
+  .catch(err => Promise.reject(err))
+}
+
 
 // create a document of Petitioners with their types and an index (and update records with multiples ?)
 
@@ -80,5 +87,6 @@ const fixDate = coll => {
 module.exports = {
   connect,
   setStatus,
-  fixDate
+  fixDate, 
+  makeFWDStatus
 }
