@@ -4,7 +4,8 @@ let db, collection;
 
 connect()
   .then(dbObject => {
-    { db, collection } = dbObject;
+    db = dbObject.db;
+    collection = dbObject.collection;
     return;
   })
   .then(() => {
