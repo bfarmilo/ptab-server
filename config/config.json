@@ -1,5 +1,6 @@
 {
   "database": {
+    "mongoUrl": "mongodb://localhost:27017/local",
     "server": "ptab.redis.cache.windows.net",
     "keyPrime": "v3yaVe6sDQD1QPwqdyKFriaaMTpAcJM5Wst/O24NiJc="
   },
