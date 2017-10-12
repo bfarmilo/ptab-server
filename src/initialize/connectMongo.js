@@ -26,7 +26,7 @@ const setStatus = coll => {
         return {
           updateOne: {
             filter: { _id: item._id },
-            update: { $set: { survivalStatus: health } },
+            update: { $set: { survivalStatus: health, FWDStatus:item.FWDStatus.toLowerCase() } },
             upsert: true
           }
         }

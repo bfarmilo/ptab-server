@@ -19,7 +19,7 @@ connect()
   })
   .then(result => {
     // checking the result
-    return collection.find().toArray()
+    return //collection.find().toArray()
 /*     let unique = new Set(result.map(item => `${item.Patent}:${item.Claim}`));
     console.log(unique.size); */
   })
