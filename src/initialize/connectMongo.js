@@ -11,12 +11,12 @@ const connect = () => MongoClient.connect(url)
     return Promise.reject(err);
   })
 
-const setStatus = (coll, field, value) => {
+const setStatus = coll => {
   let collection = coll;
-  return collection.find({ [field]: [value] }).toArray()
+  return collection.find({}).toArray()
     .then(result => {
       return result.map(item => {
-        const health = survivalStatus(item.status, item.FWDStatus, item.instituted, item.invalid);
+        const health = survivalStatus(item.Status, item.FWDStatus, item.Instituted, item.Invalid);
         return { updateOne: {
           filter: { _id: item._id }, 
           update: { $set: { survivalStatus: health } }, 
@@ -24,7 +24,9 @@ const setStatus = (coll, field, value) => {
         } }  
       })
     })
-    .then(commandList => collection.bulkWrite(commandList))
+    .then(commandList => {
+      return collection.bulkWrite(commandList)
+      })
     .then(check => Promise.resolve('OK'))
     .catch(err => Promise.reject(err))
 }
