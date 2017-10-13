@@ -26,8 +26,9 @@ const setStatus = coll => {
         // upsert survival Status
         const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
         // split any multiples into arrays
-        const petitioners = item.Petitioner.find(';') ? extractMultiples(item.Petitioner) : [item.Petitioner];
-        const patentowners = item.PatentOwner.find(';') ? extractMultiples(item.PatentOwner) : [item.PatentOwner];
+        const petitioners = item.Petitioner.includes(';') ? extractMultiples(item.Petitioner) : [item.Petitioner];
+        const patentowners = item.PatentOwner.includes(';') ? extractMultiples(item.PatentOwner) : [item.PatentOwner];
+        const judges = item.AllJudges.includes(';') ? extractMultiples(item.AllJudges) : [item.AllJudges];
         // change FWDStatus to lower case
         // convert petition date to ISO dates
         return {
@@ -37,7 +38,8 @@ const setStatus = coll => {
               $set: {
                 survivalStatus: health,
                 FWDStatus: item.FWDStatus.toLowerCase(),
-                DateFiled: new Date(item.DateFiled)
+                DateFiled: new Date(item.DateFiled),
+                AllJudges: judges
               }
             },
             upsert: true
@@ -48,7 +50,7 @@ const setStatus = coll => {
     .then(commandList => {
       return collection.bulkWrite(commandList)
     })
-    .then(check => Promise.resolve('OK'))
+    .then(check => Promise.resolve(check))
     .catch(err => Promise.reject(err))
 }
 
@@ -83,8 +85,13 @@ const fixDate = coll => {
 // coll: collection - the collection to traverse (the main db)
 // newcoll: collection - the collection to output to
 const makeFWDStatus = (coll, newcoll) => {
-  return coll.distinct({ FWDStatus }).toArray()
-    .then(FWDList => newcoll.insert(FWDList))
+  return coll.distinct('FWDStatus')
+    .then(FWDList => {
+      console.log(FWDList);
+      return newcoll.insertMany(FWDList.map(item => {
+        return { type: item }
+      }))
+      })
     .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
 }
@@ -93,7 +100,7 @@ const makeFWDStatus = (coll, newcoll) => {
 // create a document of Petitioners with their types and an index (and update records with multiples ?)
 const getPetitioners = (collection, newcoll) => {
   return collection.find({}).toArray()
-    .then(result => new Set(...result.map(item => item.Petitioner)))
+    .then(result => result.reduce((a,b) => a.Petitioner.concat(b)))
     .then(petitioners => petitioners.map(item => {
       const partyComponents = item.match(/(.*)? \((\w+)\)/);
       return partyComponents ? {
