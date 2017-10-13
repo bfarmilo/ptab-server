@@ -1,5 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 const { survivalStatus } = require('./survivalBin');
+const { extractMultiples, extractTypes } = require('../entities/helpers');
 const url = require('../../config/config.json').database.mongoUrl;
 
 const connect = () => MongoClient.connect(url)
@@ -22,11 +23,23 @@ const setStatus = coll => {
   return collection.find({}).toArray()
     .then(result => {
       return result.map(item => {
+        // upsert survival Status
         const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
+        // split any multiples into arrays
+        const petitioners = item.Petitioner.find(';') ? extractMultiples(item.Petitioner) : [item.Petitioner];
+        const patentowners = item.PatentOwner.find(';') ? extractMultiples(item.PatentOwner) : [item.PatentOwner];
+        // change FWDStatus to lower case
+        // convert petition date to ISO dates
         return {
           updateOne: {
             filter: { _id: item._id },
-            update: { $set: { survivalStatus: health, FWDStatus:item.FWDStatus.toLowerCase() } },
+            update: {
+              $set: {
+                survivalStatus: health,
+                FWDStatus: item.FWDStatus.toLowerCase(),
+                DateFiled: new Date(item.DateFiled)
+              }
+            },
             upsert: true
           }
         }
@@ -46,14 +59,14 @@ const fixDate = coll => {
       return {
         updateOne: {
           filter: { _id: item._id },
-          update: { $set: { DateFiled: new Date(item.DateFiled) }}
+          update: { $set: { DateFiled: new Date(item.DateFiled) } }
         }
       }
     })
-  )
-  .then(cmdList => collection.bulkWrite(cmdList))
-  .then(check => Promise.resolve('OK'))
-  .catch(err => Promise.reject(err))
+    )
+    .then(cmdList => collection.bulkWrite(cmdList))
+    .then(check => Promise.resolve('OK'))
+    .catch(err => Promise.reject(err))
 }
 
 // create document of fields (IPR, Status, etc.) ?
@@ -69,16 +82,47 @@ const fixDate = coll => {
 // create a document of FWDStatus Types (convert to lower case) and an index
 const makeFWDStatus = coll => {
   return coll.find({}).toArray()
-  .then(result => new Set (result.map(item => item.FWDStatus)))
-  .then(FWDList => Promise.resolve(FWDList))
-  .catch(err => Promise.reject(err))
+    .then(result => new Set(result.map(item => item.FWDStatus)))
+    .then(FWDList => Promise.resolve(FWDList))
+    .catch(err => Promise.reject(err))
 }
 
 
 // create a document of Petitioners with their types and an index (and update records with multiples ?)
+const getPetitioners = collection => {
+  return collection.find({}).toArray()
+    .then(result => new Set(...result.map(item => item.Petitioner)))
+    .then(petitioners => petitioners.map(item => {
+      const partyComponents = item.match(/(.*)? \((\w+)\)/);
+      return partyComponents ? {
+        name: partyComponents[1],
+        type: partyComponents[2]
+      } : {
+          name: item,
+          type: "unknown"
+        }
+    }))
+    .then(petitionerCollection => Promise.resolve(petitionerCollection))
+    .catch(err => Promise.reject(err))
+}
 
 // create a document of PatentOwners with their types and an index (and update records with multiples ?)
-
+const getPatentOwners = collection => {
+  return collection.find({}).toArray()
+    .then(result => new Set(...result.map(item => item.PatentOwner)))
+    .then(patentowners => patentowners.map(item => {
+      const partyComponents = item.match(/(.*)? \((\w+)\)/);
+      return partyComponents ? {
+        name: partyComponents[1],
+        type: partyComponents[2]
+      } : {
+          name: item,
+          type: "unknown"
+        }
+    }))
+    .then(patentownerCollection => Promise.resolve(patentownerCollection))
+    .catch(err => Promise.reject(err))
+}
 // create a document of main classes and an index
 
 // TODO figure out how I'm going to deal with unique claims and binning ?
@@ -87,6 +131,8 @@ const makeFWDStatus = coll => {
 module.exports = {
   connect,
   setStatus,
-  fixDate, 
-  makeFWDStatus
+  fixDate,
+  makeFWDStatus,
+  getPetitioners,
+  getPatentOwners
 }
