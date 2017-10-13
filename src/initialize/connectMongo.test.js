@@ -13,13 +13,12 @@ connect()
 
     // return setStatus(collection);
     
-    return makeFWDStatus(collection);
+    return makeFWDStatus(collection, db.collection('FWDStatusTypes'));
     // return getPetitioners(collection);
     // return getPatentOwners(collection);
   })
   .then(result => {
     console.log(result);
-    return // db.collection('FWDStatusTypes').insertMany(result);
   })
   .then(result => {
     // checking the result

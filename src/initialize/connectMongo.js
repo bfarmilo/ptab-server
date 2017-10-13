@@ -80,16 +80,18 @@ const fixDate = coll => {
 // create a document of Status types and an index
 
 // create a document of FWDStatus Types (convert to lower case) and an index
-const makeFWDStatus = coll => {
-  return coll.find({}).toArray()
-    .then(result => new Set(result.map(item => item.FWDStatus)))
-    .then(FWDList => Promise.resolve(FWDList))
+// coll: collection - the collection to traverse (the main db)
+// newcoll: collection - the collection to output to
+const makeFWDStatus = (coll, newcoll) => {
+  return coll.distinct({ FWDStatus }).toArray()
+    .then(FWDList => newcoll.insert(FWDList))
+    .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
 }
 
 
 // create a document of Petitioners with their types and an index (and update records with multiples ?)
-const getPetitioners = collection => {
+const getPetitioners = (collection, newcoll) => {
   return collection.find({}).toArray()
     .then(result => new Set(...result.map(item => item.Petitioner)))
     .then(petitioners => petitioners.map(item => {
@@ -102,12 +104,13 @@ const getPetitioners = collection => {
           type: "unknown"
         }
     }))
-    .then(petitionerCollection => Promise.resolve(petitionerCollection))
+    .then(petitionerCollection => newcoll.insert(petitionerCollection))
+    .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
 }
 
 // create a document of PatentOwners with their types and an index (and update records with multiples ?)
-const getPatentOwners = collection => {
+const getPatentOwners = (collection, newcoll) => {
   return collection.find({}).toArray()
     .then(result => new Set(...result.map(item => item.PatentOwner)))
     .then(patentowners => patentowners.map(item => {
@@ -120,7 +123,8 @@ const getPatentOwners = collection => {
           type: "unknown"
         }
     }))
-    .then(patentownerCollection => Promise.resolve(patentownerCollection))
+    .then(resultCollection => newcoll.insert(resultCollection))
+    .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
 }
 // create a document of main classes and an index
