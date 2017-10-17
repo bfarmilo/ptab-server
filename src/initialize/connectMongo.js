@@ -139,6 +139,8 @@ const getPatentOwners = (collection, newcoll) => {
 }
 // create a document of main classes and an index
 
+// TODO: Replace Petitioner with petitioner _id's, and PatentOwner with patentowner _id's
+
 // TODO: Map to a patents and claims table
 /* 
   _id=PatentClaim
