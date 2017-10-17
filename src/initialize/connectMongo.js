@@ -139,9 +139,20 @@ const getPatentOwners = (collection, newcoll) => {
 }
 // create a document of main classes and an index
 
-// TODO figure out how I'm going to deal with unique claims and binning ?
+// TODO: Map to a patents and claims table
+/* 
+  _id=PatentClaim
+  Patent: string
+  Claim: number
+  Status: string
+  PatentOwner: Array<patentOwnerIDs>
+  Petitions: Array<{IPR:string, DateFiled:Date, FWDStatus:string, Petitioner:Array<petitionerID>}>
+*/
+// idea: first create a set of unique patent, claim, _id
+// then pass through, on match append to PatentOwner, Petition arrays
+//   idea: do a lookup on PatentOwner / Petitioner collection and return the _id
+// finally based on worst outcome, assign a status to the overall claim
 
-// TODO convert dates to ISO date formats
 module.exports = {
   connect,
   setStatus,
