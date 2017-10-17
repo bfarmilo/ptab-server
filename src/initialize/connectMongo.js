@@ -39,7 +39,9 @@ const setStatus = coll => {
                 survivalStatus: health,
                 FWDStatus: item.FWDStatus.toLowerCase(),
                 DateFiled: new Date(item.DateFiled),
-                AllJudges: judges
+                AllJudges: judges,
+                Petitioner: petitioners,
+                PatentOwner: patentowners
               }
             },
             upsert: true
@@ -99,8 +101,8 @@ const makeFWDStatus = (coll, newcoll) => {
 
 // create a document of Petitioners with their types and an index (and update records with multiples ?)
 const getPetitioners = (collection, newcoll) => {
-  return collection.find({}).toArray()
-    .then(result => result.reduce((a,b) => a.Petitioner.concat(b)))
+  return collection.distinct('Petitioner', {})
+    .then(result => result.map(item => item.trim()))
     .then(petitioners => petitioners.map(item => {
       const partyComponents = item.match(/(.*)? \((\w+)\)/);
       return partyComponents ? {
@@ -112,14 +114,15 @@ const getPetitioners = (collection, newcoll) => {
         }
     }))
     .then(petitionerCollection => newcoll.insert(petitionerCollection))
+    .then(fullCollection => newcoll.distinct)
     .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
 }
 
 // create a document of PatentOwners with their types and an index (and update records with multiples ?)
 const getPatentOwners = (collection, newcoll) => {
-  return collection.find({}).toArray()
-    .then(result => new Set(...result.map(item => item.PatentOwner)))
+  return collection.distinct('PatentOwner', {})
+    .then(result => result.map(item => item.trim()))
     .then(patentowners => patentowners.map(item => {
       const partyComponents = item.match(/(.*)? \((\w+)\)/);
       return partyComponents ? {

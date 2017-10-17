@@ -14,8 +14,8 @@ connect()
     // return setStatus(collection);
     
     // return makeFWDStatus(collection, db.collection('FWDStatusTypes'));
-    return getPetitioners(collection, db.collection('Petitioners'));
-    // return getPatentOwners(collection);
+    // return getPetitioners(collection, db.collection('Petitioners'));
+    return getPatentOwners(collection, db.collection('PatentOwners'));
   })
   .then(result => {
     console.log(result);
