@@ -77,6 +77,11 @@ const cache = (req, res, next) => {
     });
 }
 
+const setCache = (user, table, value) => {
+if (!clientActive) client = startClient(user);
+return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', 300);
+}
+
 router.get('/connect', (req, res) => {
   try {
     if (req.query.db === 'azure') {
@@ -119,22 +124,19 @@ router.get('/run', function (req, res, next) {
 
 // gets a list of fields for querying
 router.get('/fields', cache, function (req, res, next) {
-  if (!clientActive) client = startClient(req.query.user);
   return connect()
   .then(database => {
     db = database;
     collection = db.collection('ptab');
     return collection.findOne();
   })
-  .then(sample => {
-    return Object.keys(sample).map(item => {
-      return Array.isArray(sample[item]) ? Object.keys(sample[item][0]).map(subitem => `${item}.${subitem}`) : item 
-      })
-      .reduce((a, b) => a.concat(b), [])
-    })
+  .then(sample => Object.keys(sample).map(item => Array.isArray(sample[item]) 
+  ? Object.keys(sample[item][0]).map(subitem => `${item}.${subitem}`) 
+  : item)
+  .reduce((a, b) => a.concat(b), []))
     .then(result => {
       res.json(result);
-      return client.set(decodeURIComponent(req.query.table), JSON.stringify(result))
+      return setCache(req.query.user, req.query.table, result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err));
@@ -156,7 +158,6 @@ router.get('/tables', function (req, res, next) {
 
 // survival data
 router.get('/survival', cache, function (req, res, next) {
-  if (!clientActive) client = startClient(req.query.user);
   connect()
     .then(database => {
         db = database;
@@ -170,7 +171,7 @@ router.get('/survival', cache, function (req, res, next) {
     })
     .then(result => {
       res.json(result);
-      return client.set(decodeURIComponent(req.query.table), JSON.stringify(result))
+      return setCache(req.query.user, req.query.table, result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err))
