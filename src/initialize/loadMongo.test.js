@@ -1,4 +1,6 @@
-const { connect, setStatus, fixDate, makeFWDStatus, getPatentOwners, getPetitioners } = require('./connectMongo');
+const { setStatus, fixDate, makeFWDStatus, getPatentOwners, mapPatentClaim } = require('./connectMongo');
+const {connect} = require('../connect/mongoConnect');
+
 
 let db, collection;
 
@@ -11,11 +13,12 @@ connect()
   .then(() => {
     // then main function goes here
 
-    // return setStatus(collection);
+    //return setStatus(collection);
     
     // return makeFWDStatus(collection, db.collection('FWDStatusTypes'));
     // return getPetitioners(collection, db.collection('Petitioners'));
-    return getPatentOwners(collection, db.collection('PatentOwners'));
+    // return getPatentOwners(collection, db.collection('PatentOwners'));
+    return mapPatentClaim(collection, db.collection('testQuery'));
   })
   .then(result => {
     console.log(result);

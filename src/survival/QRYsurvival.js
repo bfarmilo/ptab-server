@@ -191,12 +191,16 @@ const allClaims = (client, scope) => {
 }
 
 
-// survivalAnalysis returns an object of {totalClaims, uniqueClaims, survivalUnique, survivalTotal}
-// totalClaims is the total number of claims in scope. 
-// uniqueClaims is the number of unique claims in scope.
-// survival is an array of the count of unique claims in each survival bin, after de-duplication.
+// survivalAnalysis returns an object of {countTotal, countUnique, survivalUnique, survivalTotal}
+// countTotal is the total number of claims in scope. 
+// countUnique is the number of unique claims in scope.
+// survivalUnique is an array of {type, count} of unique claims in each survival bin, after de-duplication.
+// survivalTotal is an array of {type, count} where type is the bin name
 // @param client: redis client
 // @param scope: a particular search space (eg 'patentowner:npe'), or 'all'
+// returnData: {scope: string, countTotal: number, countUnique: number,
+// survivalTotal: {type: string, count: number},
+// survivalUnique: {type: string, count: number}
 
 const survivalAnalysis = (client, scope, chartID, userID) => {
   let returnData = {};

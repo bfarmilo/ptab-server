@@ -1,16 +1,5 @@
-const MongoClient = require('mongodb').MongoClient;
 const { survivalStatus } = require('./survivalBin');
-const { extractMultiples, extractTypes } = require('../entities/helpers');
-const url = require('../../config/config.json').database.mongoUrl;
-
-const connect = () => MongoClient.connect(url)
-  .then(database => {
-    console.info("connected to server");
-    return Promise.resolve(database);
-  })
-  .catch(err => {
-    return Promise.reject(err);
-  })
+const { extractMultiples, extractTypes, flatten } = require('../entities/helpers');
 
 /* 
 setStatus takes a collection and assigns a 'survivalStatus' to each element
@@ -25,10 +14,10 @@ const setStatus = coll => {
       return result.map(item => {
         // upsert survival Status
         const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
-        // split any multiples into arrays
-        const petitioners = item.Petitioner.includes(';') ? extractMultiples(item.Petitioner) : [item.Petitioner];
-        const patentowners = item.PatentOwner.includes(';') ? extractMultiples(item.PatentOwner) : [item.PatentOwner];
-        const judges = item.AllJudges.includes(';') ? extractMultiples(item.AllJudges) : [item.AllJudges];
+        // split any multiples into arrays (unless they already are arrays)
+        const petitioners = Array.isArray(item.Petitioner) ? item.Petitioner : extractMultiples(item.Petitioner).map(entity => extractTypes(entity, 0, "Petitioner"));
+        const patentowners = Array.isArray(item.PatentOwner) ? item.PatentOwner: extractMultiples(item.PatentOwner).map(entity => extractTypes(entity, 0, "PatentOwner"));
+        let judges = Array.isArray(item.AllJudges) ? flatten(item.AllJudges): extractMultiples(item.AllJudges);
         // change FWDStatus to lower case
         // convert petition date to ISO dates
         return {
@@ -41,7 +30,8 @@ const setStatus = coll => {
                 DateFiled: new Date(item.DateFiled),
                 AllJudges: judges,
                 Petitioner: petitioners,
-                PatentOwner: patentowners
+                PatentOwner: patentowners,
+                claimIdx: `${item.Patent}-${item.Claim}`
               }
             },
             upsert: true
@@ -139,8 +129,6 @@ const getPatentOwners = (collection, newcoll) => {
 }
 // create a document of main classes and an index
 
-// TODO: Replace Petitioner with petitioner _id's, and PatentOwner with patentowner _id's
-
 // TODO: Map to a patents and claims table
 /* 
   _id=PatentClaim
@@ -150,10 +138,27 @@ const getPatentOwners = (collection, newcoll) => {
   PatentOwner: Array<patentOwnerIDs>
   Petitions: Array<{IPR:string, DateFiled:Date, FWDStatus:string, Petitioner:Array<petitionerID>}>
 */
-// idea: first create a set of unique patent, claim, _id
-// then pass through, on match append to PatentOwner, Petition arrays
-//   idea: do a lookup on PatentOwner / Petitioner collection and return the _id
 // finally based on worst outcome, assign a status to the overall claim
+
+const mapPatentClaim = (collection, newcoll) => {
+  return collection.aggregate([
+      { $group: {
+        _id:'$claimIdx',
+        worstStatus: { $max: '$survivalStatus.level'},
+        Petitions: { $push: {
+          IPR: '$IPR',
+          DateFiled: '$DateFiled',
+          FWDStatus: '$FWDStatus',
+          Petitioner: '$Petitioner',
+          survivalStatus: '$survivalStatus',
+          id: '$_id'
+        }}
+      }}
+    ]).toArray()
+    .then(result => newcoll.insert(result))
+    .then(status => Promise.resolve(status))
+    .catch(err => Promise.reject(err))
+}
 
 module.exports = {
   connect,
@@ -161,5 +166,6 @@ module.exports = {
   fixDate,
   makeFWDStatus,
   getPetitioners,
-  getPatentOwners
+  getPatentOwners,
+  mapPatentClaim
 }
