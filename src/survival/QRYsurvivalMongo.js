@@ -1,4 +1,4 @@
-const { getBin } = require('../entities/survivalBin');
+const { getBin } = require('./survivalBin');
 
 /* survivalAnalysis runs a query and returns an object used to make a pie chart
 @param client: mongodb - mongo database

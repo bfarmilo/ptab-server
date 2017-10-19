@@ -1,4 +1,4 @@
-const { survivalStatus } = require('../entities/survivalBin');
+const { survivalStatus } = require('../survival/survivalBin');
 const { extractMultiples, extractTypes, flatten } = require('../entities/helpers');
 
 /* 
@@ -29,8 +29,8 @@ const setStatus = coll => {
                 FWDStatus: item.FWDStatus.toLowerCase(),
                 DateFiled: new Date(item.DateFiled),
                 AllJudges: judges,
-                Petitioner: petitioners,
-                PatentOwner: patentowners,
+                Petitioner: petitioners.map(item => ({name: item.name.trim(), type: item.type})),
+                PatentOwner: patentowners.map(item => ({name: item.name.trim(), type: item.type})),
                 claimIdx: `${item.Patent}-${item.Claim}`
               }
             },
@@ -46,8 +46,6 @@ const setStatus = coll => {
     .catch(err => Promise.reject(err))
 }
 
-// create document of fields (IPR, Status, etc.) ?
-
 // create a document of survivalStatus'
 
 // create index of survivalStatus
@@ -55,22 +53,6 @@ const setStatus = coll => {
 // create document of searchable collections for dropdowns
 
 // create a document of Status types and an index
-
-// create a document of FWDStatus Types (convert to lower case) and an index
-// coll: collection - the collection to traverse (the main db)
-// newcoll: collection - the collection to output to
-const makeFWDStatus = (coll, newcoll) => {
-  return coll.distinct('FWDStatus')
-    .then(FWDList => {
-      console.log(FWDList);
-      return newcoll.insertMany(FWDList.map(item => {
-        return { type: item }
-      }))
-    })
-    .then(status => Promise.resolve(status))
-    .catch(err => Promise.reject(err))
-}
-
 
 // create a document of Petitioners with their types and an index (and update records with multiples ?)
 const getPetitioners = (collection, newcoll) => {
@@ -149,7 +131,6 @@ const mapPatentClaim = (collection, newcoll) => {
 
 module.exports = {
   setStatus,
-  makeFWDStatus,
   getPetitioners,
   getPatentOwners,
   mapPatentClaim

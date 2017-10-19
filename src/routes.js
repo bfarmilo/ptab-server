@@ -3,7 +3,7 @@ const router = express.Router();
 const redis = require('promise-redis')();
 
 const find = require('./scan/lookupRecords.js');
-const { getDetailTable } = require('./survivaldetail/getDetailTable.js');
+const { getDetailTable } = require('./survivaldetail/getDetailTable');
 const { survivalAnalysis } = require('./survival/QRYsurvivalMongo');
 const { initDB } = require('./initialize/LoadDB.js');
 const { getEntityData } = require('./entities/QRYtypes.js');
@@ -118,16 +118,35 @@ router.get('/run', function (req, res, next) {
 });
 
 // gets a list of fields for querying
-router.get('/fields', function (req, res, next) {
+router.get('/fields', cache, function (req, res, next) {
   if (!clientActive) client = startClient(req.query.user);
-  client.smembers('fieldList')
-    .then((result) => res.json(result))
+  return connect()
+  .then(database => {
+    db = database;
+    collection = db.collection('ptab');
+    return collection.findOne();
+  })
+  .then(sample => {
+    return Object.keys(sample).map(item => {
+      return Array.isArray(sample[item]) ? Object.keys(sample[item][0]).map(subitem => `${item}.${subitem}`) : item 
+      })
+      .reduce((a, b) => a.concat(b), [])
+    })
+    .then(result => {
+      res.json(result);
+      return client.set(decodeURIComponent(req.query.table), JSON.stringify(result))
+    })
+    .then(status => console.info(status))
     .catch(err => console.error(err));
 });
 
 // gets a list of tables for querying
 router.get('/tables', function (req, res, next) {
   if (!clientActive) client = startClient(req.query.user);
+  // TODO: update this to handle general queries (field == value)
+  // TODO: So given a field, return the list of allowable values for graphing
+  // TODO: ie, FWDStatus: 
+  // TODO: Call getEntityData to get a list of entity types (npe, etc)
   client.multi(searchableSet.map(item => ['keys', `${item}:*`])).exec()
     .then(result => {
       res.json(['all'].concat(...result))

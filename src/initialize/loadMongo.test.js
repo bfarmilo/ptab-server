@@ -13,12 +13,12 @@ connect()
   .then(() => {
     // then main function goes here
 
-    //return setStatus(collection);
+    return setStatus(collection);
 
     // return makeFWDStatus(collection, db.collection('FWDStatusTypes'));
     // return getPetitioners(collection, db.collection('Petitioners'));
     // return getPatentOwners(collection, db.collection('PatentOwners'));
-    return mapPatentClaim(collection, db.collection('byClaims'));
+    // return mapPatentClaim(collection, db.collection('byClaims'));
   })
   .then(result => {
     console.log(result);
