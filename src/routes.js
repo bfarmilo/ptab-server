@@ -32,14 +32,14 @@ const startClient = (userID) => {
     startclient = redis.createClient();
   } else {
     startclient = redis.createClient(
-      6380,
-      config.database.server,
+      config.database.redis.port,
+      config.database.redis.server /*,
       {
         password: config.database.keyPrime,
         tls: {
           servername: config.database.server
         }
-      }
+      } */
     )
   }
   setListener(startclient, userID);
@@ -61,6 +61,20 @@ const setListener = (connection, userID) => {
   connection.on('error', (err) => {
     console.error('connection error !', err)
   });
+}
+
+const cache = (req, res, next) => {
+  if (!clientActive) client = startClient(req.query.user);
+    const table = decodeURIComponent(req.query.table);
+    client.get(table, function (err, data) {
+        if (err) throw err;
+
+        if (data != null) {
+            res.json(JSON.parse(data));
+        } else {
+            next();
+        }
+    });
 }
 
 router.get('/connect', (req, res) => {
@@ -122,7 +136,8 @@ router.get('/tables', function (req, res, next) {
 });
 
 // survival data
-router.get('/survival', function (req, res, next) {
+router.get('/survival', cache, function (req, res, next) {
+  if (!clientActive) client = startClient(req.query.user);
   connect()
     .then(database => {
         db = database;
@@ -135,8 +150,10 @@ router.get('/survival', function (req, res, next) {
   return survivalAnalysis(db, decodeURIComponent(req.query.table), req.query.chart, req.query.user);
     })
     .then(result => {
-      res.json(result)
+      res.json(result);
+      return client.set(decodeURIComponent(req.query.table), JSON.stringify(result))
     })
+    .then(status => console.info(status))
     .catch(err => console.error(err))
 });
 

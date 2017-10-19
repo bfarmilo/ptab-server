@@ -17,22 +17,22 @@ returns returnData: {
 const survivalAnalysis = (client, scope, chartID, userID) => {
   const db = client;
   let collection = db.collection('ptab');
-  let queryString, newQuery;
+  let totalQuery, uniqueQuery;
   const returnData = {title: scope};
   // parse the scope field:value or 'all'
   // TODO: write a better parser !!
-  queryString = scope === 'all' ? {}
+  totalQuery = scope === 'all' ? {}
     : Object.assign({ [scope.split(':')[0]]: scope.split(':')[1] });
-  console.log(queryString);
+  console.log(totalQuery);
   return collection.aggregate([
-    { $match: queryString },
+    { $match: totalQuery },
     ]).toArray()
   .then(result => {
     console.log(result.length);
     returnData.totalCount = result.length;
     // first - get the list of all claims (include duplicates)
     return collection.aggregate([
-      { $match: queryString },
+      { $match: totalQuery },
       { $group: {
         _id: '$survivalStatus',
         count: { $sum: 1}
@@ -42,16 +42,17 @@ const survivalAnalysis = (client, scope, chartID, userID) => {
   .then(survivalTable => {
     returnData.survivalTotal = survivalTable.map(item => ({type: item._id.result, score: item._id.level, count: item.count}))
     collection=db.collection('byClaims');
-    newQuery = scope === 'all' ? {} : '$_id.'.concat(queryString);
+    uniqueQuery = scope === 'all' ? {} : Object.assign({ ['_id.'.concat(scope.split(':')[0])]: scope.split(':')[1] });
     //TODO - better Query Parser ! for Petitioner type need different path !!
+    console.info(uniqueQuery);
     return collection.aggregate([
-      { $match: newQuery},
+      { $match: uniqueQuery },
       ]).toArray()
   })
   .then(count => {
     returnData.totalUnique = count.length;
     return collection.aggregate([
-      { $match: newQuery },
+      { $match: uniqueQuery },
       { $group: {
         _id: '$worstStatus',
         count: { $sum: 1 }

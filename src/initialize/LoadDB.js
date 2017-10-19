@@ -78,7 +78,7 @@ const initDB = (client) => {
         }
         // create a list based on the first number of the USPC
         let mainClass = item.MainUSPC.split('/')[0]
-        hundreds = mainClass.length > 2 ? mainClass.match(/(\d)\d{2}/) : [0, 0];
+        let hundreds = mainClass.length > 2 ? mainClass.match(/(\d)\d{2}/) : [0, 0];
         if (hundreds !== null) {
           cmdList.push(['sadd', `class:${hundreds[1]}00`, `claimID:${index}`]);
           if (hundreds[1] === '5'

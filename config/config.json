@@ -1,7 +1,10 @@
 {
   "database": {
     "mongoUrl": "mongodb://localhost:27017/local",
-    "server": "ptab.redis.cache.windows.net",
+    "redis": {
+      "server": "ptab.redis.cache.windows.net", 
+      "port":6379
+    },
     "keyPrime": "v3yaVe6sDQD1QPwqdyKFriaaMTpAcJM5Wst/O24NiJc="
   },
   "survivalStatus": [
