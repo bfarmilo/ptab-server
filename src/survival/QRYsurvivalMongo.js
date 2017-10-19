@@ -23,3 +23,7 @@ const survivalAnalysis = (client, scope, chartID, userID) => {
     .then(result => Promise.resolve(result)) //TODO: process result into ReturnData
     .catch(err => Promise.reject(err))
 }
+
+module.exports = {
+  survivalAnalysis
+}
