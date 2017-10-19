@@ -13,6 +13,10 @@ let client; // need this global for the other functions to re-use
 let clientActive = false;
 let localMode = false;
 
+const { connect } = require('./connect/mongoConnect');
+
+let db, collection;
+
 // these are namespaces that you can use to select a graph to view
 const searchableSet = [
   'class',
@@ -119,10 +123,17 @@ router.get('/tables', function (req, res, next) {
 
 // survival data
 router.get('/survival', function (req, res, next) {
-  if (!clientActive) client = startClient(req.query.user);
+  connect()
+    .then(database => {
+        db = database;
+        collection = db.collection('ptab')
+        return;
+    })
+    .then(() => {
   // pulls the count of claim survival statistics
   console.log('received request to update chart %d - %s', req.query.chart, req.query.table);
-  survivalAnalysis(client, decodeURIComponent(req.query.table), req.query.chart, req.query.user)
+  return survivalAnalysis(db, decodeURIComponent(req.query.table), req.query.chart, req.query.user);
+    })
     .then(result => {
       res.json(result)
     })
