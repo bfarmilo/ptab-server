@@ -4,7 +4,7 @@ const redis = require('promise-redis')();
 
 const find = require('./scan/lookupRecords.js');
 const { getDetailTable } = require('./survivaldetail/getDetailTable.js');
-const { survivalAnalysis } = require('./survival/QRYsurvival.js');
+const { survivalAnalysis } = require('./survival/QRYsurvivalMongo');
 const { initDB } = require('./initialize/LoadDB.js');
 const { getEntityData } = require('./entities/QRYtypes.js');
 const config = require('../config/config.json');

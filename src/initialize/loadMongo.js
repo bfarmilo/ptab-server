@@ -1,4 +1,4 @@
-const { survivalStatus } = require('./survivalBin');
+const { survivalStatus } = require('../entities/survivalBin');
 const { extractMultiples, extractTypes, flatten } = require('../entities/helpers');
 
 /* 
@@ -43,23 +43,6 @@ const setStatus = coll => {
       return collection.bulkWrite(commandList)
     })
     .then(check => Promise.resolve(check))
-    .catch(err => Promise.reject(err))
-}
-
-const fixDate = coll => {
-  let collection = coll;
-  return collection.find({}).toArray()
-    .then(result => result.map(item => {
-      return {
-        updateOne: {
-          filter: { _id: item._id },
-          update: { $set: { DateFiled: new Date(item.DateFiled) } }
-        }
-      }
-    })
-    )
-    .then(cmdList => collection.bulkWrite(cmdList))
-    .then(check => Promise.resolve('OK'))
     .catch(err => Promise.reject(err))
 }
 
@@ -144,7 +127,7 @@ const mapPatentClaim = (collection, newcoll) => {
   return collection.aggregate([
     {
       $group: {
-        _id: '$claimIdx',
+        _id: {claimIdx: '$claimIdx', PatentOwner: '$PatentOwner'},
         worstStatus: { $max: '$survivalStatus.level' },
         Petitions: {
           $push: {
@@ -165,9 +148,7 @@ const mapPatentClaim = (collection, newcoll) => {
 }
 
 module.exports = {
-  connect,
   setStatus,
-  fixDate,
   makeFWDStatus,
   getPetitioners,
   getPatentOwners,

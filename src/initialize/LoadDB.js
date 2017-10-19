@@ -1,7 +1,7 @@
 
 const dataSet = require('../../config/1216-RP-10452 - claimdata.json').claimData;
 const config = require('../../config/config.json');
-const { survivalStatus } = require('./survivalBin.js');
+const { survivalStatus } = require('../entities/survivalBin.js');
 
 const initDB = (client) => {
   // set client timeouts to 10 minutes of idleness

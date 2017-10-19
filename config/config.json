@@ -10,5 +10,12 @@
     "3_weakened",
     "4_impaired",
     "5_killed"
-  ]
+  ],
+  "levelBins" : {
+  "5": "killed",
+  "4": "impaired",
+  "3": "weakened",
+  "2": "unaffected",
+  "1": "unbinned"
+}
 }
