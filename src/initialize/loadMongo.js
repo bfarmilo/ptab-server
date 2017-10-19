@@ -16,8 +16,8 @@ const setStatus = coll => {
         const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
         // split any multiples into arrays (unless they already are arrays)
         const petitioners = Array.isArray(item.Petitioner) ? item.Petitioner : extractMultiples(item.Petitioner).map(entity => extractTypes(entity, 0, "Petitioner"));
-        const patentowners = Array.isArray(item.PatentOwner) ? item.PatentOwner: extractMultiples(item.PatentOwner).map(entity => extractTypes(entity, 0, "PatentOwner"));
-        let judges = Array.isArray(item.AllJudges) ? flatten(item.AllJudges): extractMultiples(item.AllJudges);
+        const patentowners = Array.isArray(item.PatentOwner) ? item.PatentOwner : extractMultiples(item.PatentOwner).map(entity => extractTypes(entity, 0, "PatentOwner"));
+        let judges = Array.isArray(item.AllJudges) ? flatten(item.AllJudges) : extractMultiples(item.AllJudges);
         // change FWDStatus to lower case
         // convert petition date to ISO dates
         return {
@@ -83,7 +83,7 @@ const makeFWDStatus = (coll, newcoll) => {
       return newcoll.insertMany(FWDList.map(item => {
         return { type: item }
       }))
-      })
+    })
     .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
 }
@@ -142,19 +142,23 @@ const getPatentOwners = (collection, newcoll) => {
 
 const mapPatentClaim = (collection, newcoll) => {
   return collection.aggregate([
-      { $group: {
-        _id:'$claimIdx',
-        worstStatus: { $max: '$survivalStatus.level'},
-        Petitions: { $push: {
-          IPR: '$IPR',
-          DateFiled: '$DateFiled',
-          FWDStatus: '$FWDStatus',
-          Petitioner: '$Petitioner',
-          survivalStatus: '$survivalStatus',
-          id: '$_id'
-        }}
-      }}
-    ]).toArray()
+    {
+      $group: {
+        _id: '$claimIdx',
+        worstStatus: { $max: '$survivalStatus.level' },
+        Petitions: {
+          $push: {
+            IPR: '$IPR',
+            DateFiled: '$DateFiled',
+            FWDStatus: '$FWDStatus',
+            Petitioner: '$Petitioner',
+            survivalStatus: '$survivalStatus',
+            id: '$_id'
+          }
+        }
+      }
+    }
+  ]).toArray()
     .then(result => newcoll.insert(result))
     .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))

@@ -13,12 +13,13 @@ returns returnData: {
 */
 
 const survivalAnalysis = (client, scope, chartID, userID) => {
-    const returnData = {};
-    // parse the scope field:value or 'all'
-    const queryString = scope === 'all' ? {} 
-    : Object.assign({[scope.split(':')[0]]:scope.split(':')[1]});
-    return client.collections('ptab').find(queryString).toArray()
-    .then(result => result)
-    .then(result => Promise.resolve(returnData))
-    .catch(err => Promise.reject(err));
+  const returnData = {};
+  // parse the scope field:value or 'all'
+  // TODO: write a better parser !!
+  const queryString = scope === 'all' ? {}
+    : Object.assign({ [scope.split(':')[0]]: scope.split(':')[1] });
+  console.log(queryString);
+  return client.collections('ptab').find(queryString).toArray()
+    .then(result => Promise.resolve(result)) //TODO: process result into ReturnData
+    .catch(err => Promise.reject(err))
 }
