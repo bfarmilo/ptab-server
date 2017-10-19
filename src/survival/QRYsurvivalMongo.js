@@ -19,7 +19,7 @@ const survivalAnalysis = (client, scope, chartID, userID) => {
   const queryString = scope === 'all' ? {}
     : Object.assign({ [scope.split(':')[0]]: scope.split(':')[1] });
   console.log(queryString);
-  return client.collections('ptab').find(queryString).toArray()
+  return client.find(queryString).toArray()
     .then(result => Promise.resolve(result)) //TODO: process result into ReturnData
     .catch(err => Promise.reject(err))
 }
