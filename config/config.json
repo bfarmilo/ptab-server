@@ -3,10 +3,12 @@
     "mongoUrl": "mongodb://localhost:27017/local",
     "redis": {
       "server": "ptab.redis.cache.windows.net", 
-      "port":6379
+      "port":6379,
+      "expiry": 500
     },
     "keyPrime": "v3yaVe6sDQD1QPwqdyKFriaaMTpAcJM5Wst/O24NiJc="
   },
+  "app_url": "http:localhost:3000",
   "survivalStatus": [
     "6_unbinned",
     "2_unaffected",

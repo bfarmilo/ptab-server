@@ -29,14 +29,15 @@ const survivalAnalysis = (client, scope, chartID, userID) => {
     ]).toArray()
   .then(result => {
     console.log(result.length);
-    returnData.totalCount = result.length;
+    returnData.countTotal = result.length;
     // first - get the list of all claims (include duplicates)
     return collection.aggregate([
       { $match: totalQuery },
       { $group: {
         _id: '$survivalStatus',
         count: { $sum: 1}
-      }}
+      }},
+      { $sort: {_id:1}}
       ]).toArray()
   })
   .then(survivalTable => {
@@ -50,13 +51,14 @@ const survivalAnalysis = (client, scope, chartID, userID) => {
       ]).toArray()
   })
   .then(count => {
-    returnData.totalUnique = count.length;
+    returnData.countUnique = count.length;
     return collection.aggregate([
       { $match: uniqueQuery },
       { $group: {
         _id: '$worstStatus',
         count: { $sum: 1 }
-      }}
+      }},
+      { $sort: { _id:1}}
       ]).toArray()
   })
   .then(uniqueTable => {

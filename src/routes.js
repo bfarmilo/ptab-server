@@ -79,8 +79,14 @@ const cache = (req, res, next) => {
 
 const setCache = (user, table, value) => {
 if (!clientActive) client = startClient(user);
-return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', 300);
+return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.redis.expiry);
 }
+
+router.use((req, res, next) => {
+  // enable CORS from the app location. Configure in config.json
+  res.setHeader('Access-Control-Allow-Origin', config.app_url);
+  next();
+})
 
 router.get('/connect', (req, res) => {
   try {
