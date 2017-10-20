@@ -1,6 +1,7 @@
 {
   "database": {
     "mongoUrl": "mongodb://localhost:27017/local",
+    "maxRecords": 250,
     "redis": {
       "server": "ptab.redis.cache.windows.net", 
       "port":6379,
