@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const redis = require('promise-redis')();
 
-const find = require('./scan/lookupRecords.js');
+const { lookUp } = require('./scan/lookupRecordsMongo');
 const { getDetailTable } = require('./survivaldetail/getDetailTable');
 const { survivalAnalysis } = require('./survival/QRYsurvivalMongo');
-const { initDB } = require('./initialize/LoadDB.js');
-const { getEntityData } = require('./entities/QRYtypes.js');
+const { initDB } = require('./initialize/LoadDB');
+const { getEntityData } = require('./entities/QRYtypes');
 const config = require('../config/config.json');
 
 let client; // need this global for the other functions to re-use
@@ -79,7 +79,7 @@ const cache = (req, res, next) => {
 
 const setCache = (user, table, value) => {
 if (!clientActive) client = startClient(user);
-return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.redis.expiry);
+return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.database.redis.expiry);
 }
 
 router.use((req, res, next) => {
@@ -118,9 +118,11 @@ router.get('/reset', (req, res, next) => {
 
 /* GET list of records by query */
 router.get('/run', function (req, res, next) {
-  if (!clientActive) client = startClient(req.query.user);
-  find.setClient(client);
-  find.lookUp(req.query.field, req.query.value, req.query.cursor, decodeURIComponent(req.query.table))
+  return connect()
+  .then(database => {
+    db = database;
+    return lookUp(db, req.query.field, req.query.value, parseInt(req.query.cursor,10), decodeURIComponent(req.query.table))
+    })
     .then(result => {
       console.log('%d results returned', result.count)
       res.json(result);

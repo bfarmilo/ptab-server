@@ -9,7 +9,7 @@
     },
     "keyPrime": "v3yaVe6sDQD1QPwqdyKFriaaMTpAcJM5Wst/O24NiJc="
   },
-  "app_url": "http:localhost:3000",
+  "app_url": "http://localhost:3000",
   "survivalStatus": [
     "6_unbinned",
     "2_unaffected",

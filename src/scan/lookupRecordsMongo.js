@@ -19,11 +19,17 @@ const lookUp = (db, field, value, cursor, target = 'all') => {
   return db.collection('ptab').find({[field]:{$regex:regExValue}}).count()
   .then(numRecords => {
     totalCount = numRecords;
-    return db.collection('ptab').find({[field]:{ $regex: regExValue}}).skip(cursor).limit(config.database.maxRecords).toArray()
+    return db.collection('ptab')
+    .find({[field]:{ $regex: regExValue}})
+    .sort({DateFiled:-1, claimIdx:1})
+    .skip(cursor)
+    .limit(config.database.maxRecords)
+    .toArray()
   })
     .then(result => {
       cursor = cursor+config.database.maxRecords > totalCount ? 0 : cursor + config.database.maxRecords;
       console.log('returning cursor:%d, count:%d, totalCount:%d', cursor, result.length, totalCount);
+      console.log(result[0]._id);
       return Promise.resolve({ cursor, count: result.length, totalCount, data: result });
     })
     .catch(err => Promise.reject(err));
