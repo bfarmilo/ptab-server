@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const redis = require('promise-redis')();
+const bodyParser = require('body-parser');
 
 const { lookUp } = require('./scan/lookupRecordsMongo');
 const { getDetailTable } = require('./survivaldetail/getDetailTable');
@@ -88,6 +89,8 @@ router.use((req, res, next) => {
   next();
 })
 
+router.use(bodyParser.text());
+
 router.get('/connect', (req, res) => {
   try {
     if (req.query.db === 'azure') {
@@ -117,11 +120,13 @@ router.get('/reset', (req, res, next) => {
 
 
 /* GET list of records by query */
-router.get('/run', function (req, res, next) {
+router.post('/run', function (req, res, next) {
+  console.info('post detected with values %j', JSON.parse(req.body));
+  const request = JSON.parse(req.body);
   return connect()
   .then(database => {
     db = database;
-    return lookUp(db, req.query.field, req.query.value, parseInt(req.query.cursor,10), decodeURIComponent(req.query.table))
+    return lookUp(db, request.query, request.cursor)
     })
     .then(result => {
       console.log('%d results returned', result.count)
