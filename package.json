@@ -4,7 +4,7 @@
   "description": "",
   "repository": {
     "type": "git",
-    "url":"https://github.com/bfarmilo/ptab-server.git"
+    "url": "https://github.com/bfarmilo/ptab-server.git"
   },
   "main": "server.js",
   "scripts": {
@@ -17,12 +17,12 @@
     "node": "8.6.0"
   },
   "dependencies": {
+    "body-parser": "^1.18.2",
     "express": "^4.15.4",
     "mongodb": "^2.2.33",
     "promise-redis": "0.0.5"
   },
   "devDependencies": {
-    "node-fetch": "^1.7.3",
-    "ssl-root-cas": "^1.2.4"
+    "node-fetch": "^1.7.3"
   }
 }
