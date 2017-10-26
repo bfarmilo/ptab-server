@@ -5,6 +5,7 @@ const { flatten } = require('../entities/helpers');
 const ptabUrl = 'https://ptabdata.uspto.gov/ptab-api';
 const header = {credentials: 'include'};
 const MAX_RETURN = 100;
+const START_DATE = '2017-07-01';
 
 /**
  * checkOffset returns the next offset, or maxCount if at the end of the collection
@@ -48,8 +49,8 @@ const getAllData = (query, header) => {
  * 
  * @returns {Promise} a promise that resolves to {max:number, data:Array[string]}
  */
-const getItems = () => {
-  return getAllData(`${ptabUrl}/trials?limit=100&sort=lastModifiedDatetime&lastModifiedDatetimeFrom=2017-07-01`, header)
+const getTrials = () => {
+  return getAllData(`${ptabUrl}/trials?limit=100&sort=trialNumber&lastModifiedDatetimeFrom=${START_DATE}`, header)
   .then(result => Promise.resolve(result))
   .catch(err => Promise.reject(err))
 }
@@ -60,8 +61,8 @@ const getItems = () => {
  * @returns {Promise} a promise that resolves to {offset:number, max:number, data:Array[string]}
  * where the returned offset is the next offset to use, or max if there are no more records
  */
-const getBoardDocuments = (offset) => {
-  return getAllData(`${ptabUrl}/documents?filingDatetimeFrom=2017-07-01&filingParty=board`, header)
+const getBoardDocuments = () => {
+  return getAllData(`${ptabUrl}/documents?filingDatetimeFrom=${START_DATE}&filingParty=board`, header)
     .then(result => Promise.resolve(result))
     .catch(err => Promise.reject(err));
 }
@@ -70,6 +71,6 @@ const getBoardDocuments = (offset) => {
  * @public
  */
 module.exports = {
-  getItems,
+  getTrials,
   getBoardDocuments
 }
