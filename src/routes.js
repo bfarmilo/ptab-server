@@ -8,9 +8,10 @@ const { getDetailTable } = require('./survivaldetail/getDetailTable');
 const { survivalAnalysis } = require('./survival/QRYsurvivalMongo');
 const { initDB } = require('./initialize/LoadDB');
 const { getEntityData } = require('./entities/QRYtypes');
+const { getDistinct } = require('../entities/helpers');
 const config = require('../config/config.json');
 
-let client; // need this global for the other functions to re-use
+let client; // the redis client, need this global for the other functions to re-use
 let clientActive = false;
 let localMode = false;
 
@@ -20,11 +21,16 @@ let db, collection;
 
 // these are namespaces that you can use to select a graph to view
 const searchableSet = [
-  'class',
-  'FWDStatus',
-  'status',
-  'patentownertype',
-  'petitionertype'
+  'all',
+  'MainUSPC',
+  'PatentOwner.name',
+  'PatentOwner.type',
+  'Petitioner.name',
+  'Petitioner.type',
+  'AuthorJudge',
+  'AllJudges',
+  'Instituted',
+  'DateFiled'
 ];
 
 const startClient = (userID) => {
@@ -106,6 +112,8 @@ router.get('/connect', (req, res) => {
   } catch (err) { res.send(err) }
 })
 
+/* /Reset route currently only used for redis-only db, deprecated
+
 // check redis DB, initialize if req'd
 router.get('/reset', (req, res, next) => {
   if (!clientActive) client = startClient(req.query.user);
@@ -117,7 +125,7 @@ router.get('/reset', (req, res, next) => {
     })
     .catch(err => console.error(err));
 })
-
+*/
 
 /* GET list of records by query */
 router.post('/run', function (req, res, next) {
@@ -135,7 +143,7 @@ router.post('/run', function (req, res, next) {
     .catch(err => console.error(err));
 });
 
-// gets a list of fields for querying
+// gets a list of fields for querying, cached
 router.get('/fields', cache, function (req, res, next) {
   return connect()
   .then(database => {
@@ -157,19 +165,30 @@ router.get('/fields', cache, function (req, res, next) {
 
 // gets a list of tables for querying
 router.get('/tables', function (req, res, next) {
-  if (!clientActive) client = startClient(req.query.user);
   // TODO: update this to handle general queries (field == value)
   // TODO: So given a field, return the list of allowable values for graphing
   // TODO: ie, FWDStatus: 
   // TODO: Call getEntityData to get a list of entity types (npe, etc)
-  client.multi(searchableSet.map(item => ['keys', `${item}:*`])).exec()
-    .then(result => {
-      res.json(['all'].concat(...result))
-    })
+      res.json(searchableSet)
     .catch(err => console.error(err));
 });
 
-// survival data
+// get a list of unique items for the selected table
+router.post('/chartvalues', (req, res, next) => {
+  //need to know the current table
+  const request = JSON.parse(req.body);
+    connect()
+    .then(database => {
+        db = database;
+        collection = db.collection('ptab')
+        return;
+    })
+    .then(() => request.query.map(chartID => getDistinct(collection, chartID)))
+    .then(result => res.json(result))
+    .catch(err => console.error(err))
+})
+
+// survival data used in graphs - cached
 router.get('/survival', cache, function (req, res, next) {
   connect()
     .then(database => {
