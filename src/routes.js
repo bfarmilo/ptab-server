@@ -72,7 +72,9 @@ const setListener = (connection, userID) => {
 
 const cache = (req, res, next) => {
   if (!clientActive) client = startClient(req.query.user);
+    if (req.method === 'GET') {
     const table = decodeURIComponent(req.query.table);
+    if (table === undefined) next();
     client.get(table, function (err, data) {
         if (err) throw err;
 
@@ -82,6 +84,18 @@ const cache = (req, res, next) => {
             next();
         }
     });
+    } else if (req.method === 'POST') {
+      const request = JSON.parse(req.body);
+      const title = `${request.query.field === 'all' ? 'all' : `${request.query.field}.${request.query.value}`}`;
+      client.get(title, function (err, data) {
+        if (err) throw err;
+        if (data != null) {
+          res.json(JSON.parse(data));
+        } else {
+          next();
+        }
+      })
+    }
 }
 
 const setCache = (user, table, value) => {
@@ -157,7 +171,7 @@ router.get('/fields', cache, function (req, res, next) {
   .reduce((a, b) => a.concat(b), []))
     .then(result => {
       res.json(result);
-      return setCache(req.query.user, req.query.table, result);
+      return setCache(req.query.user, 'fields', result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err));
@@ -169,8 +183,8 @@ router.get('/tables', function (req, res, next) {
   // TODO: So given a field, return the list of allowable values for graphing
   // TODO: ie, FWDStatus: 
   // TODO: Call getEntityData to get a list of entity types (npe, etc)
-      res.json(searchableSet)
-    .catch(err => console.error(err));
+    res.json(searchableSet)
+    // .catch(err => console.error(err));
 });
 
 // get a list of unique items for the selected table
@@ -203,6 +217,7 @@ router.post('/survival', cache, function (req, res, next) {
     })
     .then(result => {
       res.json(result);
+      console.log(result.title);
       return setCache(request.user, result.title, result);
     })
     .then(status => console.info(status))

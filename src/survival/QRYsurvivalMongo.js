@@ -15,7 +15,7 @@ returns returnData: {
 const survivalAnalysis = (db, query) => {
   let collection = db.collection('ptab');
   let totalQuery, uniqueQuery;
-  const returnData = {title: `${query.field}${query.field === 'all' ? '' : `:${query.value}`}`};
+  const returnData = {title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}`};
   // parse the query {field, value}
   totalQuery = query.field === 'all' ? {}
     : Object.assign({ [query.field]: query.value });
@@ -56,7 +56,10 @@ const survivalAnalysis = (db, query) => {
   .then(uniqueTable => {
     returnData.survivalUnique = uniqueTable.map(item => ({type: getBin(item._id).result, score:item._id, count: item.count}))
   })
-    .then(result => Promise.resolve(returnData))
+    .then(result => {
+      console.log(returnData);
+      return Promise.resolve(returnData)
+      })
     .catch(err => Promise.reject(err))
 }
 
