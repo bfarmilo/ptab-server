@@ -2,9 +2,7 @@ const { getBin } = require('./survivalBin');
 
 /* survivalAnalysis runs a query and returns an object used to make a pie chart
 @param client: mongodb - mongo database
-@param scope: string - a particular search space (eg 'patentowner:npe'), or 'all'
-@param chartID: number(1,2) - which chart set to update, currently the page displays 2 chart sets
-@param userID: number - number of user requesting the chart - ie multiple users get different charts
+@param query: {field, value} - an object with a field  (eg 'PatentOwner' or 'all') and value(eg 'npe')
 returns returnData: {
   title: string, 
   countTotal: number,
@@ -14,21 +12,17 @@ returns returnData: {
 }
 */
 
-const survivalAnalysis = (client, scope, chartID, userID) => {
-  const db = client;
+const survivalAnalysis = (db, query) => {
   let collection = db.collection('ptab');
   let totalQuery, uniqueQuery;
-  const returnData = {title: scope};
-  // parse the scope field:value or 'all'
-  // TODO: write a better parser !!
-  totalQuery = scope === 'all' ? {}
-    : Object.assign({ [scope.split(':')[0]]: scope.split(':')[1] });
-  console.log(totalQuery);
+  const returnData = {title: `${query.field}${query.field === 'all' ? '' : `:${query.value}`}`};
+  // parse the query {field, value}
+  totalQuery = query.field === 'all' ? {}
+    : Object.assign({ [query.field]: query.value });
   return collection.aggregate([
     { $match: totalQuery },
     ]).toArray()
   .then(result => {
-    console.log(result.length);
     returnData.countTotal = result.length;
     // first - get the list of all claims (include duplicates)
     return collection.aggregate([
@@ -43,9 +37,7 @@ const survivalAnalysis = (client, scope, chartID, userID) => {
   .then(survivalTable => {
     returnData.survivalTotal = survivalTable.map(item => ({type: item._id.result, score: item._id.level, count: item.count}))
     collection=db.collection('byClaims');
-    uniqueQuery = scope === 'all' ? {} : Object.assign({ ['_id.'.concat(scope.split(':')[0])]: scope.split(':')[1] });
-    //TODO - better Query Parser ! for Petitioner type need different path !!
-    console.info(uniqueQuery);
+    uniqueQuery = query.field === 'all' ? {} : Object.assign({ ['_id.'.concat(query.field)]: query.value });
     return collection.aggregate([
       { $match: uniqueQuery },
       ]).toArray()

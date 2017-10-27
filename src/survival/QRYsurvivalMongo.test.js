@@ -10,7 +10,9 @@ connect()
         collection = db.collection('ptab')
         return;
     })
-    .then(() => survivalAnalysis(db, 'all', 1, 100))
+    .then(() => survivalAnalysis(db, {field:'all', value:''}, 100))
+    .then(result => console.log(result))
+    .then(() => survivalAnalysis(db, {field:'PatentOwner.type', value:'npe'}, 100))
     .then(result => console.log(result))
   .then(() => db.close())
   .catch(err => {

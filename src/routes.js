@@ -8,7 +8,7 @@ const { getDetailTable } = require('./survivaldetail/getDetailTable');
 const { survivalAnalysis } = require('./survival/QRYsurvivalMongo');
 const { initDB } = require('./initialize/LoadDB');
 const { getEntityData } = require('./entities/QRYtypes');
-const { getDistinct } = require('../entities/helpers');
+const { getDistinct } = require('./entities/helpers');
 const config = require('../config/config.json');
 
 let client; // the redis client, need this global for the other functions to re-use
@@ -175,35 +175,35 @@ router.get('/tables', function (req, res, next) {
 
 // get a list of unique items for the selected table
 router.post('/chartvalues', (req, res, next) => {
-  //need to know the current table
   const request = JSON.parse(req.body);
+  console.log('received request for values in %j', request.query);
     connect()
     .then(database => {
         db = database;
         collection = db.collection('ptab')
         return;
     })
-    .then(() => request.query.map(chartID => getDistinct(collection, chartID)))
+    .then(() => Promise.all(request.query.map(item => getDistinct(collection, item.field))))
     .then(result => res.json(result))
     .catch(err => console.error(err))
 })
 
 // survival data used in graphs - cached
-router.get('/survival', cache, function (req, res, next) {
+router.post('/survival', cache, function (req, res, next) {
+  const request=JSON.parse(req.body);
   connect()
     .then(database => {
         db = database;
-        collection = db.collection('ptab')
         return;
     })
     .then(() => {
   // pulls the count of claim survival statistics
-  console.log('received request to update chart %d - %s', req.query.chart, req.query.table);
-  return survivalAnalysis(db, decodeURIComponent(req.query.table), req.query.chart, req.query.user);
+  console.log('received request to update chart %d', request.chart );
+  return survivalAnalysis(db, request.query);
     })
     .then(result => {
       res.json(result);
-      return setCache(req.query.user, req.query.table, result);
+      return setCache(request.user, result.title, result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err))

@@ -21,11 +21,11 @@ const extractTypes = (entity, index, party) => {
     type: partyComponents[2] //,
     //id: index
   } : {
-      //party,
-      name: entity,
-      type: "unknown"// ,
-      //id: index
-    }
+    //party,
+    name: entity,
+    type: "unknown" // ,
+    //id: index
+  }
 }
 
 
@@ -51,22 +51,26 @@ const extractMultiples = (value) => {
  * @returns {array} the flattened output array
  */
 const flatten = list => list.reduce(
-    (a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []
+  (a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []
 );
 
 
 /**
  * getDistinct generates an array of distinct elements from a field
  * 
+ * if 'all' is queried, return an empty array
  * @param {mongodb collection} collection a mongodb collection to search
  * @param {string} field the field to scan for distinct values
  * @returns {Promise} Promise that resolves to a single object {field {string}: [distinct values]} 
  */
- const getDistinct = (collection, field)  => {
+const getDistinct = (collection, field) => {
+  if (field === 'all') return Promise.resolve({ 'all': [] });
   const typeList = new Set();
   return collection.distinct(field)
-  .then((result) => Promise.resolve({[field]:result}))
-  .catch(err => Promise.reject(err));
+    .then((result) => Promise.resolve({
+      [field]: result
+    }))
+    .catch(err => Promise.reject(err));
 }
 
 module.exports = {
