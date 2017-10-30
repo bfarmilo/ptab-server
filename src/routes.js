@@ -71,8 +71,8 @@ const setListener = (connection, userID) => {
 }
 
 const cache = (req, res, next) => {
-  if (!clientActive) client = startClient(req.query.user);
     if (req.method === 'GET') {
+      if (!clientActive) client = startClient(req.query.user);
     const table = decodeURIComponent(req.query.table);
     if (table === undefined) next();
     client.get(table, function (err, data) {
@@ -86,12 +86,16 @@ const cache = (req, res, next) => {
     });
     } else if (req.method === 'POST') {
       const request = JSON.parse(req.body);
-      const title = `${request.query.field === 'all' ? 'all' : `${request.query.field}.${request.query.value}`}`;
+      if (!clientActive) client = startClient(request.user);
+      const title = `${request.query.field === 'all' ? `${req.path}:all` : `${req.path}:${request.query.field}:${request.query.value}`}`;
+      console.info('looking for cache entry for %s', title);
       client.get(title, function (err, data) {
         if (err) throw err;
         if (data != null) {
+          console.info('cache entry found');
           res.json(JSON.parse(data));
         } else {
+          console.info('cache miss');
           next();
         }
       })
@@ -103,28 +107,9 @@ if (!clientActive) client = startClient(user);
 return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.database.redis.expiry);
 }
 
-router.use((req, res, next) => {
-  // enable CORS from the app location. Configure in config.json
-  res.setHeader('Access-Control-Allow-Origin', config.app_url);
-  next();
-})
 
 router.use(bodyParser.text());
 
-router.get('/connect', (req, res) => {
-  try {
-    if (req.query.db === 'azure') {
-      localMode = false;
-      client = startClient(req.query.user);
-      client.info()
-        .then(result => res.send(result))
-    } else {
-      localMode = true;
-      client = startClient(req.query.user);
-      res.send('connecting to local redis instance');
-    }
-  } catch (err) { res.send(err) }
-})
 
 /* /Reset route currently only used for redis-only db, deprecated
 
@@ -188,7 +173,7 @@ router.get('/tables', function (req, res, next) {
 });
 
 // get a list of unique items for the selected table
-router.post('/chartvalues', (req, res, next) => {
+router.post('/chartvalues', cache, (req, res, next) => {
   const request = JSON.parse(req.body);
   console.log('received request for values in %j', request.query);
     connect()
@@ -197,8 +182,11 @@ router.post('/chartvalues', (req, res, next) => {
         collection = db.collection('ptab')
         return;
     })
-    .then(() => Promise.all(request.query.map(item => getDistinct(collection, item.field))))
-    .then(result => res.json(result))
+    .then(() => getDistinct(collection, request.query.field))
+    .then(result => {
+      res.json(result);
+      setCache(request.user, `${req.path}:${request.query.field}`, result[request.query.field]);
+    })
     .catch(err => console.error(err))
 })
 
@@ -218,7 +206,7 @@ router.post('/survival', cache, function (req, res, next) {
     .then(result => {
       res.json(result);
       console.log(result.title);
-      return setCache(request.user, result.title, result);
+      return setCache(request.user, `${req.path}:${result.title}`, result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err))

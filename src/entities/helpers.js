@@ -64,7 +64,7 @@ const flatten = list => list.reduce(
  * @returns {Promise} Promise that resolves to a single object {field {string}: [distinct values]} 
  */
 const getDistinct = (collection, field) => {
-  if (field === 'all') return Promise.resolve({ 'all': [] });
+  if (field === 'all') return Promise.resolve({ 'all': ['all'] });
   const typeList = new Set();
   return collection.distinct(field)
     .then((result) => Promise.resolve({
