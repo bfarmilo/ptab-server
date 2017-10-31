@@ -37,7 +37,9 @@ const survivalAnalysis = (db, query) => {
   .then(survivalTable => {
     returnData.survivalTotal = survivalTable.map(item => ({type: item._id.result, score: item._id.level, count: item.count}))
     collection=db.collection('byClaims');
-    uniqueQuery = query.field === 'all' ? {} : Object.assign({ ['_id.'.concat(query.field)]: query.value });
+    uniqueQuery = query.field === 'all' ? {} : Object.assign({ ['Petitions.'.concat(query.field)]: query.value });
+    if (query.field.includes('PatentOwner')) uniqueQuery = Object.assign({['_id.'.concat(query.field)]: query.value});
+    console.info('running unique query with value %j', uniqueQuery);
     return collection.aggregate([
       { $match: uniqueQuery },
       ]).toArray()

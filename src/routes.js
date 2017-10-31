@@ -87,7 +87,7 @@ const cache = (req, res, next) => {
     } else if (req.method === 'POST') {
       const request = JSON.parse(req.body);
       if (!clientActive) client = startClient(request.user);
-      const title = `${request.query.field === 'all' ? `${req.path}:all` : `${req.path}:${request.query.field}:${request.query.value}`}`;
+      const title = `${request.query.value === '' ? `${req.path}:${request.query.field}` : `${req.path}:${request.query.field}:${JSON.stringify(request.query.value)}`}`;
       console.info('looking for cache entry for %s', title);
       client.get(title, function (err, data) {
         if (err) throw err;
@@ -185,7 +185,7 @@ router.post('/chartvalues', cache, (req, res, next) => {
     .then(() => getDistinct(collection, request.query.field))
     .then(result => {
       res.json(result);
-      setCache(request.user, `${req.path}:${request.query.field}`, result[request.query.field]);
+      setCache(request.user, `${req.path}:${request.query.field}`, result);
     })
     .catch(err => console.error(err))
 })

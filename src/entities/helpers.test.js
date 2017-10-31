@@ -20,7 +20,11 @@ connect()
     return getDistinct(db.collection('ptab'), 'PatentOwner.name');
   })
   .then(result => {
-    console.log(result);
+    console.log(JSON.stringify(result));
+  })
+  .then(() => getDistinct(db.collection('ptab'), 'MainUSPC'))
+  .then(result => {
+    console.log(JSON.stringify(result));
   })
   .then(() => db.close())
   .catch(err => {

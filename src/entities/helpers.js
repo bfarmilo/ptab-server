@@ -58,17 +58,31 @@ const flatten = list => list.reduce(
 /**
  * getDistinct generates an array of distinct elements from a field
  * 
- * if 'all' is queried, return an empty array
- * @param {mongodb collection} collection a mongodb collection to search
- * @param {string} field the field to scan for distinct values
+ * if 'all' is queried, return a one-element array ['all']
+ * @param collection -> a mongodb collection to search
+ * @param {string} field -> the field to scan for distinct values
  * @returns {Promise} Promise that resolves to a single object {field {string}: [distinct values]} 
  */
 const getDistinct = (collection, field) => {
   if (field === 'all') return Promise.resolve({ 'all': ['all'] });
-  const typeList = new Set();
-  return collection.distinct(field)
-    .then((result) => Promise.resolve({
-      [field]: result
+  let aggregation = [{ $project: { checkField: `$${field}` } }];
+  if (field.includes('Petitioner') || field.includes('PatentOwner') || field.includes('AllJudges')) {
+    // these return arrays, so we need an unwind step after the projection
+    aggregation.push({ $unwind: '$checkField' })
+  }
+  return collection.aggregate(
+      aggregation.concat([{
+          $group: {
+            _id: 'checkField',
+            result: { $addToSet: '$checkField' }
+          }
+        },
+        { $unwind: '$result' },
+        { $sort: { result: 1 } }
+      ])
+    ).toArray()
+    .then(result => Promise.resolve({
+      [field]: result.map(item => item.result)
     }))
     .catch(err => Promise.reject(err));
 }
