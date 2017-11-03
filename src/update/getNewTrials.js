@@ -5,7 +5,7 @@ const { flatten } = require('../entities/helpers');
 const ptabUrl = 'https://ptabdata.uspto.gov/ptab-api';
 const header = {credentials: 'include'};
 const MAX_RETURN = 100;
-const START_DATE = '2017-07-01';
+const START_DATE = '2012-01-01';
 
 /**
  * checkOffset returns the next offset, or maxCount if at the end of the collection
@@ -18,6 +18,12 @@ const START_DATE = '2017-07-01';
 const checkOffset = (currentOffset, maxCount) => {
    return (maxCount <= currentOffset + MAX_RETURN) ? maxCount : currentOffset + MAX_RETURN;
 }
+
+/** getAllData takes a query (url to PTAB collection) and a header and returns results until the cursor is exhausted
+ * @param {string} query -> url to the PTAB collection to query
+ * @param {string} header -> header for the fetch request, needed to connect properly
+ * @returns {{max:number, data:Array{PTAB results}}}
+**/
 
 const getAllData = (query, header) => {
   return new Promise((resolve, reject) => {
@@ -62,6 +68,7 @@ const getTrials = () => {
  * where the returned offset is the next offset to use, or max if there are no more records
  */
 const getBoardDocuments = () => {
+  console.info('Retrieving PTAB documents...');
   return getAllData(`${ptabUrl}/documents?filingDatetimeFrom=${START_DATE}&filingParty=board`, header)
     .then(result => Promise.resolve(result))
     .catch(err => Promise.reject(err));

@@ -7,7 +7,7 @@ require('ssl-root-cas/latest').inject().addFile(__dirname + '/../../config/inter
 getTrials()
   .then(result => {
     console.log('returned total count %d', result.max);
-    console.log('returned cases\n', result.data.map(item => ({IPR: item.trialNumber, status: item.prosecutionStatus})).filter(item => item.IPR.indexOf('IPR2016-') !== -1));
+    console.log('returned cases\n', result.data.map(item => ({ IPR: item.trialNumber, status: item.prosecutionStatus, patentOwner:item.patentOwnerName})).filter(item => item.IPR.indexOf('IPR') !== -1));
     return;
   })
   .then(() => getBoardDocuments())
