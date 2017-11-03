@@ -1,4 +1,105 @@
 const { getBin } = require('./survivalBin');
+const timeRange = [
+  '2012_Q4',
+  '2013_Q1',
+  '2013_Q2',
+  '2013_Q3',
+  '2013_Q4',
+  '2014_Q1',
+  '2014_Q2',
+  '2014_Q3',
+  '2014_Q4',
+  '2015_Q1',
+  '2015_Q2',
+  '2015_Q3',
+  '2015_Q4',
+  '2016_Q1',
+  '2016_Q2'
+];
+
+//TODO - merge institutionline with survivalArea, they are basically the same !!
+
+const institutionLine = (db, query) => {
+    // generate the array of Totals
+  let collection = db.collection('ptab');
+  let totalQuery;
+  const returnData = { title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
+  // parse the query {field, value}
+  totalQuery = query.field === 'all' ? {} :
+    Object.assign({
+      [query.field]: query.value === 'true' ? true : query.value
+    });
+
+  console.log(typeof(totalQuery[query.field]));
+  // general plan of attack:
+  // 1. Assign a 'bin date' to each element. bin date is the first day of the quarter
+  // 2. Group by survival status, push the bin date and count
+  return collection.aggregate([
+      { $match: totalQuery },
+      {
+        $project: {
+          //"survivalStatus": 1,
+          "PatentOwner.type": 1,
+          "quarter": {
+            $cond: [{ $lte: [{ $month: "$DateFiled" }, 3] }, "Q1",
+              {
+                $cond: [{ $lte: [{ $month: "$DateFiled" }, 6] }, "Q2",
+                  {
+                    $cond: [{ $lte: [{ $month: "$DateFiled" }, 9] }, "Q3",
+                      "Q4"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "year": { $substr: [{ $year: "$DateFiled" }, 0, -1] }
+        }
+      },
+      { $sort: { year: 1, quarter: 1 } },
+      {
+        $group: {
+          //_id: "$survivalStatus.level",
+          _id: "$PatentOwner.type",
+          bin: { $push: { $concat: ['$year', '_', '$quarter'] } }
+        }
+      },
+      { $sort: { '_id': 1 } }
+    ]).toArray()
+    .then(survivalTable => {
+      returnData.survivalTotal = survivalTable.map(item => {
+        const dataObject = item.bin.reduce((acc, curr) => {
+          if (typeof(acc[curr]) == 'undefined') {
+            acc[curr] = 1;
+          }
+          else {
+            acc[curr] += 1;
+          }
+          return acc;
+        }, {});
+        // console.log(dataObject);
+        // merge it with the time range object to get one value per date, including zeros
+        const allTimes = timeRange.map(item => {
+          if (typeof(dataObject[item]) != 'undefined') {
+            return ({[item]: dataObject[item]});
+          } else {
+            return ({[item]:0});
+          }
+        })
+        console.log(allTimes);
+        return {
+          type: item._id, //getBin(item._id).result, for survival statistics !
+          //score: getBin(item._id).level,
+          data: allTimes.map(elem => ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]] }))
+        }
+      })
+    })
+    .then(result => {
+      console.log(returnData);
+      return Promise.resolve(returnData)
+    })
+    .catch(err => Promise.reject(err))
+}
 
 /** survivalArea runs a query and returns an object used to make a line chart
  * @param client:mongodb -> mongo database
@@ -17,14 +118,17 @@ const survivalArea = (db, query) => {
   // parse the query {field, value}
   totalQuery = query.field === 'all' ? {} :
     Object.assign({
-      [query.field]: query.value
+      [query.field]: query.value === 'true' ? true : query.value
     });
+
+  console.log(typeof(totalQuery[query.field]));
   // general plan of attack:
   // 1. Assign a 'bin date' to each element. bin date is the first day of the quarter
   // 2. Group by survival status, push the bin date and count
   return collection.aggregate([
       { $match: totalQuery },
-      { $project: {
+      {
+        $project: {
           "survivalStatus": 1,
           "quarter": {
             $cond: [{ $lte: [{ $month: "$DateFiled" }, 3] }, "Q1",
@@ -39,32 +143,47 @@ const survivalArea = (db, query) => {
               }
             ]
           },
-          "year": {$substr: [{$year: "$DateFiled"}, 0, -1]}
-        }},
-        { $group: {
+          "year": { $substr: [{ $year: "$DateFiled" }, 0, -1] }
+        }
+      },
+      { $sort: { year: 1, quarter: 1 } },
+      {
+        $group: {
           _id: "$survivalStatus.level",
-          bin: {$push: {$concat : ['$year', '_', '$quarter']}}
-        }},
-        { $sort : {'_id':1}}
+          bin: { $push: { $concat: ['$year', '_', '$quarter'] } }
+        }
+      },
+      { $sort: { 'bin': 1 } }
     ]).toArray()
     .then(survivalTable => {
       returnData.survivalTotal = survivalTable.map(item => {
         const dataObject = item.bin.reduce((acc, curr) => {
-            if (typeof acc[curr] == 'undefined') {
-              acc[curr] = 1;
-            } else {
-              acc[curr] += 1;
-            }
-            return acc;
-          },{});
-        return { 
+          if (typeof(acc[curr]) == 'undefined') {
+            acc[curr] = 1;
+          }
+          else {
+            acc[curr] += 1;
+          }
+          return acc;
+        }, {});
+        // console.log(dataObject);
+                // merge it with the time range object to get one value per date, including zeros
+        const allTimes = timeRange.map(item => {
+          if (typeof(dataObject[item]) != 'undefined') {
+            return ({[item]: dataObject[item]});
+          } else {
+            return ({[item]:0});
+          }
+        })
+        return {
           type: getBin(item._id).result,
           score: getBin(item._id).level,
-          data: Object.keys(dataObject).map(elem => ({bin:elem, count:dataObject[elem]}))
+          data: allTimes.map(elem => ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]] }))
         }
       })
     })
     .then(result => {
+      console.log(returnData);
       return Promise.resolve(returnData)
     })
     .catch(err => Promise.reject(err))
@@ -149,5 +268,6 @@ const survivalAnalysis = (db, query) => {
 
 module.exports = {
   survivalAnalysis,
-  survivalArea
+  survivalArea,
+  institutionLine
 }

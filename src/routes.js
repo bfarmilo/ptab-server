@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 
 const { lookUp } = require('./scan/lookupRecordsMongo');
 const { getDetailTable } = require('./survivaldetail/getDetailTable');
-const { survivalAnalysis } = require('./survival/QRYsurvivalMongo');
+const { survivalAnalysis, survivalArea, institutionLine } = require('./survival/QRYsurvivalMongo');
 const { initDB } = require('./initialize/LoadDB');
 const { getEntityData } = require('./entities/QRYtypes');
 const { getDistinct } = require('./entities/helpers');
@@ -202,6 +202,50 @@ router.post('/survival', cache, function (req, res, next) {
   // pulls the count of claim survival statistics
   console.log('received request to update chart %d', request.chart );
   return survivalAnalysis(db, request.query);
+    })
+    .then(result => {
+      res.json(result);
+      console.log(result.title);
+      return setCache(request.user, `${req.path}:${result.title}`, result);
+    })
+    .then(status => console.info(status))
+    .catch(err => console.error(err))
+});
+
+// survival data used in stacked area graphs - cached
+router.post('/survivalarea', cache, function (req, res, next) {
+  const request=JSON.parse(req.body);
+  connect()
+    .then(database => {
+        db = database;
+        return;
+    })
+    .then(() => {
+  // pulls the count of claim survival statistics
+  console.log('received request to update chart %d', request.chart );
+  return survivalArea(db, request.query);
+    })
+    .then(result => {
+      res.json(result);
+      console.log(result.title);
+      return setCache(request.user, `${req.path}:${result.title}`, result);
+    })
+    .then(status => console.info(status))
+    .catch(err => console.error(err))
+});
+
+// survival data used in stacked area graphs - cached
+router.post('/institution', cache, function (req, res, next) {
+  const request=JSON.parse(req.body);
+  connect()
+    .then(database => {
+        db = database;
+        return;
+    })
+    .then(() => {
+  // pulls the count of claim survival statistics
+  console.log('received request to update chart %d', request.chart );
+  return institutionLine(db, request.query);
     })
     .then(result => {
       res.json(result);
