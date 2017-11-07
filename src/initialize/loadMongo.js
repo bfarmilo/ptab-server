@@ -1,23 +1,42 @@
 const { survivalStatus } = require('../survival/survivalBin');
 const { extractMultiples, extractTypes, flatten } = require('../entities/helpers');
 
+
+
+
 /* 
 setStatus takes a collection and assigns a 'survivalStatus' to each element
 coll: mongodb.collection
+schema: 'ptab' or 'byTrial'
 returns 'OK' or error
 */
 
-const setStatus = coll => {
+const setStatus = (coll, schema) => {
   let collection = coll;
   return collection.find({}).toArray()
     .then(result => {
       return result.map(item => {
-        // upsert survival Status
-        const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
         // split any multiples into arrays (unless they already are arrays)
         const petitioners = Array.isArray(item.Petitioner) ? item.Petitioner : extractMultiples(item.Petitioner).map(entity => extractTypes(entity, 0, "Petitioner"));
         const patentowners = Array.isArray(item.PatentOwner) ? item.PatentOwner : extractMultiples(item.PatentOwner).map(entity => extractTypes(entity, 0, "PatentOwner"));
         let judges = Array.isArray(item.AllJudges) ? flatten(item.AllJudges) : extractMultiples(item.AllJudges);
+        const setQuery = {
+          FWDStatus: item.FWDStatus.toLowerCase(),
+          DateFiled: new Date(item.DateFiled),
+          AllJudges: judges,
+          Petitioner: petitioners.map(item => ({ name: item.name.trim(), type: item.type })),
+          PatentOwner: patentowners.map(item => ({ name: item.name.trim(), type: item.type }))
+        };
+        if (schema === 'ptab') {
+          // upsert survival Status (ptab collection only)
+          const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
+          setQuery.survivalStatus = health; //ptab collection
+          setQuery.claimIdx = `${item.Patent}-${item.Claim}`; //ptab collection
+        }
+        else {
+          if (item.InstitutionDate != 'undefined') setQuery.InstitutionDate = new Date(item.InstitutionDate);
+        }
+
         // change FWDStatus to lower case
         // convert petition date to ISO dates
         return {
@@ -25,13 +44,14 @@ const setStatus = coll => {
             filter: { _id: item._id },
             update: {
               $set: {
-                survivalStatus: health,
+                // survivalStatus: health, //ptab collection
+                InstitutionDate: item.InstitutionDate != 'undefined' ? new Date(item.InstitutionDate) : '', //byTrial collection
                 FWDStatus: item.FWDStatus.toLowerCase(),
                 DateFiled: new Date(item.DateFiled),
                 AllJudges: judges,
-                Petitioner: petitioners.map(item => ({name: item.name.trim(), type: item.type})),
-                PatentOwner: patentowners.map(item => ({name: item.name.trim(), type: item.type})),
-                claimIdx: `${item.Patent}-${item.Claim}`
+                Petitioner: petitioners.map(item => ({ name: item.name.trim(), type: item.type })),
+                PatentOwner: patentowners.map(item => ({ name: item.name.trim(), type: item.type })),
+                // claimIdx: `${item.Patent}-${item.Claim}` //ptab collection
               }
             },
             upsert: true
@@ -64,9 +84,9 @@ const getPetitioners = (collection, newcoll) => {
         name: partyComponents[1],
         type: partyComponents[2]
       } : {
-          name: item,
-          type: "unknown"
-        }
+        name: item,
+        type: "unknown"
+      }
     }))
     .then(petitionerCollection => newcoll.insert(petitionerCollection))
     .then(fullCollection => newcoll.distinct)
@@ -84,9 +104,9 @@ const getPatentOwners = (collection, newcoll) => {
         name: partyComponents[1],
         type: partyComponents[2]
       } : {
-          name: item,
-          type: "unknown"
-        }
+        name: item,
+        type: "unknown"
+      }
     }))
     .then(resultCollection => newcoll.insert(resultCollection))
     .then(status => Promise.resolve(status))
@@ -106,10 +126,9 @@ const getPatentOwners = (collection, newcoll) => {
 // finally based on worst outcome, assign a status to the overall claim
 
 const mapPatentClaim = (collection, newcoll) => {
-  return collection.aggregate([
-    {
+  return collection.aggregate([{
       $group: {
-        _id: {claimIdx: '$claimIdx', PatentOwner: '$PatentOwner'},
+        _id: { claimIdx: '$claimIdx', PatentOwner: '$PatentOwner' },
         worstStatus: { $max: '$survivalStatus.level' },
         Petitions: {
           $push: {
@@ -122,8 +141,7 @@ const mapPatentClaim = (collection, newcoll) => {
           }
         }
       }
-    }
-  ]).toArray()
+    }]).toArray()
     .then(result => newcoll.insert(result))
     .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))

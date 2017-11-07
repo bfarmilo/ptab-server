@@ -7,7 +7,7 @@ let db, collection;
 connect()
   .then(dbObject => {
     db = dbObject;
-    collection = dbObject.collection('ptab');
+    collection = dbObject.collection('byTrial');
     return;
   })
   .then(() => {
