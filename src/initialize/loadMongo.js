@@ -4,11 +4,11 @@ const { extractMultiples, extractTypes, flatten } = require('../entities/helpers
 
 
 
-/* 
-setStatus takes a collection and assigns a 'survivalStatus' to each element
-coll: mongodb.collection
-schema: 'ptab' or 'byTrial'
-returns 'OK' or error
+/** 
+* setStatus takes a collection and assigns a 'survivalStatus' to each element
+* @param coll: mongodb.collection
+* @param schema: 'ptab' or 'byTrial'
+* @returns 'OK' or error
 */
 
 const setStatus = (coll, schema) => {
@@ -74,7 +74,13 @@ const setStatus = (coll, schema) => {
 
 // create a document of Status types and an index
 
-// create a document of Petitioners with their types and an index (and update records with multiples ?)
+/**
+* getPetitioners generates a new collection of petitioners
+* @param collection: mongodb collection -> the collection to scan
+* @param newcoll: mongodb collection -> the new collection to create, containing unique petitioners {name,type}
+* @returns string status message
+**/
+
 const getPetitioners = (collection, newcoll) => {
   return collection.distinct('Petitioner', {})
     .then(result => result.map(item => item.trim()))
@@ -94,7 +100,14 @@ const getPetitioners = (collection, newcoll) => {
     .catch(err => Promise.reject(err))
 }
 
-// create a document of PatentOwners with their types and an index (and update records with multiples ?)
+/**
+* getPatentOwners generates a new collection of petitioners
+* @param collection: mongodb collection -> the collection to scan
+* @param newcoll: mongodb collection -> the new collection to create, containing unique petitioners {name,type}
+* @returns string status message
+* TODO: just merge with getPetitioners into one function, they are basically identical
+**/
+
 const getPatentOwners = (collection, newcoll) => {
   return collection.distinct('PatentOwner', {})
     .then(result => result.map(item => item.trim()))
@@ -114,16 +127,25 @@ const getPatentOwners = (collection, newcoll) => {
 }
 // create a document of main classes and an index
 
-// TODO: Map to a patents and claims table
-/* 
-  _id=PatentClaim
-  Patent: string
-  Claim: number
-  Status: string
-  PatentOwner: Array<patentOwnerIDs>
-  Petitions: Array<{IPR:string, DateFiled:Date, FWDStatus:string, Petitioner:Array<petitionerID>}>
-*/
-// finally based on worst outcome, assign a status to the overall claim
+
+/**
+ * mapPatentClaim creates a new collection indexed by patents and claims, to accumulate duplicates
+ * it also creates a new field 'worstStatus' which is the worst outcome of all of the challenges
+ * @param collection: mongodb collection -> the collection to map
+ * @param newcoll: mongodb collection -> the output collection to create
+ * @returns status: string -> status message after collection creation or error
+ * 
+ * resulting documents are of the form:
+ *   _id={claimIdx: string, PatentOwner: Array<{name:string, type:string}>}
+ *   worstStatus: number
+ *   Petitions: Array<{
+ *     IPR:string, 
+ *     DateFiled:Date, 
+ *     FWDStatus:string,
+ *     Petitioner:Array<{name:string, type:string}>}>
+ *     survivalStatus: {level:number, result:string}
+ *     id: mongodb id of the original record
+ **/
 
 const mapPatentClaim = (collection, newcoll) => {
   return collection.aggregate([{
