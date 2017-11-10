@@ -82,7 +82,7 @@ const getDistinct = (collection, field) => {
       ])
     ).toArray()
     .then(result => Promise.resolve({
-      [field]: result.map(item => item.result)
+      [field]: result.map(item => item.result.toString())
     }))
     .catch(err => Promise.reject(err));
 }

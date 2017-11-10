@@ -78,7 +78,7 @@ const cache = (req, res, next) => {
     client.get(table, function (err, data) {
         if (err) throw err;
 
-        if (data != null) {
+        if (data !== null) {
             res.json(JSON.parse(data));
         } else {
             next();
@@ -91,7 +91,7 @@ const cache = (req, res, next) => {
       console.info('looking for cache entry for %s', title);
       client.get(title, function (err, data) {
         if (err) throw err;
-        if (data != null) {
+        if (data !== null) {
           console.info('cache entry found');
           res.json(JSON.parse(data));
         } else {

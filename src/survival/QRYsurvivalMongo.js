@@ -20,10 +20,10 @@ const timeRange = [
 //TODO - merge institutionline with survivalArea, they are basically the same !!
 
 const institutionLine = (db, query) => {
-    // generate the array of Totals
+  // generate the array of Totals
   let collection = db.collection('ptab');
   let totalQuery;
-  const returnData = { title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
+  const returnData = { chartType: 'line', title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
   // parse the query {field, value}
   totalQuery = query.field === 'all' ? {} :
     Object.assign({
@@ -81,40 +81,49 @@ const institutionLine = (db, query) => {
         // merge it with the time range object to get one value per date, including zeros
         const allTimes = timeRange.map(item => {
           if (typeof(dataObject[item]) != 'undefined') {
-            return ({[item]: dataObject[item]});
-          } else {
-            return ({[item]:0});
+            return ({
+              [item]: dataObject[item] });
           }
-        })
+          else {
+            return ({
+              [item]: 0 });
+          }
+        });
         console.log(allTimes);
         return {
           type: item._id, //getBin(item._id).result, for survival statistics !
           //score: getBin(item._id).level,
-          data: allTimes.map(elem => ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]] }))
-        }
-      })
+          data: allTimes.map(elem => {
+            const yearQuarter = Object.keys(elem)[0].split('_');
+            const start = `${yearQuarter[0]}-${parseInt(yearQuarter[1].split('Q')[1], 10)*3-2}-01`;
+            return ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]], start });
+          })
+        };
+      });
     })
     .then(result => {
       console.log(returnData);
-      return Promise.resolve(returnData)
+      return Promise.resolve(returnData);
     })
-    .catch(err => Promise.reject(err))
-}
+    .catch(err => Promise.reject(err));
+};
 
 /** survivalArea runs a query and returns an object used to make a line chart
  * @param client:mongodb -> mongo database
  * @param query:{field, value} -> an object with a field and a value
  * returns returnData: {
-   title: string,
-   countTotal: number,
-   survivalTotal: Array {type: string, score: number, data: Array {bin: string, count: number}}
- }
+ *   chartType: string -> 'line'
+ *   title: string,
+ *   countTotal: number,
+ *   survivalTotal: Array {type: string, score: number, data: Array {bin: string, count: number}}
+ * }
  **/
+
 const survivalArea = (db, query) => {
   // generate the array of Totals
   let collection = db.collection('ptab');
   let totalQuery;
-  const returnData = { title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
+  const returnData = { chartType: 'line', title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
   // parse the query {field, value}
   totalQuery = query.field === 'all' ? {} :
     Object.assign({
@@ -167,46 +176,54 @@ const survivalArea = (db, query) => {
           return acc;
         }, {});
         // console.log(dataObject);
-                // merge it with the time range object to get one value per date, including zeros
+        // merge it with the time range object to get one value per date, including zeros
         const allTimes = timeRange.map(item => {
           if (typeof(dataObject[item]) != 'undefined') {
-            return ({[item]: dataObject[item]});
-          } else {
-            return ({[item]:0});
+            return ({
+              [item]: dataObject[item] });
           }
-        })
+          else {
+            return ({
+              [item]: 0 });
+          }
+        });
         return {
-          type: getBin(item._id).result,
+          type: [getBin(item._id).result],
           score: getBin(item._id).level,
-          data: allTimes.map(elem => ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]] }))
-        }
-      })
+          data: allTimes.map(elem => {
+            const yearQuarter = Object.keys(elem)[0].split('_');
+            const start = `${yearQuarter[0]}-${parseInt(yearQuarter[1].split('Q')[1], 10)*3-2}-01`;
+            return ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]], start })
+          })
+        };
+      });
     })
     .then(result => {
       console.log(returnData);
-      return Promise.resolve(returnData)
+      return Promise.resolve(returnData);
     })
-    .catch(err => Promise.reject(err))
+    .catch(err => Promise.reject(err));
 
-}
+};
 
 
 /* survivalAnalysis runs a query and returns an object used to make a pie chart
 @param client: mongodb - mongo database
 @param query: {field, value} - an object with a field  (eg 'PatentOwner' or 'all') and value(eg 'npe')
 returns returnData: {
+  chartType: string -> 'pie'
   title: string, 
   countTotal: number,
   countUnique: number,
-  survivalTotal: {type: string, count: number},
-  survivalUnique: {type: string, count: number}
+  survivalTotal: {type: string, data: [{count: number}]},
+  survivalUnique: {type: string, data: [{count: number}]}
 }
 */
 
 const survivalAnalysis = (db, query) => {
   let collection = db.collection('ptab');
   let totalQuery, uniqueQuery;
-  const returnData = { title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
+  const returnData = { chartType: 'pie', title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
   // parse the query {field, value}
   totalQuery = query.field === 'all' ? {} :
     Object.assign({
@@ -227,10 +244,10 @@ const survivalAnalysis = (db, query) => {
           }
         },
         { $sort: { _id: 1 } }
-      ]).toArray()
+      ]).toArray();
     })
     .then(survivalTable => {
-      returnData.survivalTotal = survivalTable.map(item => ({ type: item._id.result, score: item._id.level, count: item.count }))
+      returnData.survivalTotal = survivalTable.map(item => ({ type: [item._id.result], score: item._id.level, data: [{ count: item.count }] }));
       collection = db.collection('byClaims');
       uniqueQuery = query.field === 'all' ? {} : Object.assign({
         ['Petitions.'.concat(query.field)]: query.value
@@ -241,7 +258,7 @@ const survivalAnalysis = (db, query) => {
       console.info('running unique query with value %j', uniqueQuery);
       return collection.aggregate([
         { $match: uniqueQuery },
-      ]).toArray()
+      ]).toArray();
     })
     .then(count => {
       returnData.countUnique = count.length;
@@ -254,20 +271,20 @@ const survivalAnalysis = (db, query) => {
           }
         },
         { $sort: { _id: 1 } }
-      ]).toArray()
+      ]).toArray();
     })
     .then(uniqueTable => {
-      returnData.survivalUnique = uniqueTable.map(item => ({ type: getBin(item._id).result, score: item._id, count: item.count }))
+      returnData.survivalUnique = uniqueTable.map(item => ({ type: [getBin(item._id).result], score: item._id, data: [{ count: item.count }] }));
     })
     .then(result => {
       console.log(returnData);
-      return Promise.resolve(returnData)
+      return Promise.resolve(returnData);
     })
-    .catch(err => Promise.reject(err))
-}
+    .catch(err => Promise.reject(err));
+};
 
 module.exports = {
   survivalAnalysis,
   survivalArea,
   institutionLine
-}
+};
