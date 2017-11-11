@@ -17,113 +17,25 @@ const timeRange = [
   '2016_Q2'
 ];
 
-//TODO - merge institutionline with survivalArea, they are basically the same !!
-
-const institutionLine = (db, query) => {
-  // generate the array of Totals
-  let collection = db.collection('ptab');
-  let totalQuery;
-  const returnData = { chartType: 'line', title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
-  // parse the query {field, value}
-  totalQuery = query.field === 'all' ? {} :
-    Object.assign({
-      [query.field]: query.value === 'true' ? true : query.value
-    });
-
-  console.log(typeof(totalQuery[query.field]));
-  // general plan of attack:
-  // 1. Assign a 'bin date' to each element. bin date is the first day of the quarter
-  // 2. Group by survival status, push the bin date and count
-  return collection.aggregate([
-      { $match: totalQuery },
-      {
-        $project: {
-          //"survivalStatus": 1,
-          "PatentOwner.type": 1,
-          "quarter": {
-            $cond: [{ $lte: [{ $month: "$DateFiled" }, 3] }, "Q1",
-              {
-                $cond: [{ $lte: [{ $month: "$DateFiled" }, 6] }, "Q2",
-                  {
-                    $cond: [{ $lte: [{ $month: "$DateFiled" }, 9] }, "Q3",
-                      "Q4"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          "year": { $substr: [{ $year: "$DateFiled" }, 0, -1] }
-        }
-      },
-      { $sort: { year: 1, quarter: 1 } },
-      {
-        $group: {
-          //_id: "$survivalStatus.level",
-          _id: "$PatentOwner.type",
-          bin: { $push: { $concat: ['$year', '_', '$quarter'] } }
-        }
-      },
-      { $sort: { '_id': 1 } }
-    ]).toArray()
-    .then(survivalTable => {
-      returnData.survivalTotal = survivalTable.map(item => {
-        const dataObject = item.bin.reduce((acc, curr) => {
-          if (typeof(acc[curr]) == 'undefined') {
-            acc[curr] = 1;
-          }
-          else {
-            acc[curr] += 1;
-          }
-          return acc;
-        }, {});
-        // console.log(dataObject);
-        // merge it with the time range object to get one value per date, including zeros
-        const allTimes = timeRange.map(item => {
-          if (typeof(dataObject[item]) != 'undefined') {
-            return ({
-              [item]: dataObject[item] });
-          }
-          else {
-            return ({
-              [item]: 0 });
-          }
-        });
-        console.log(allTimes);
-        return {
-          type: item._id, //getBin(item._id).result, for survival statistics !
-          //score: getBin(item._id).level,
-          data: allTimes.map(elem => {
-            const yearQuarter = Object.keys(elem)[0].split('_');
-            const start = `${yearQuarter[0]}-${parseInt(yearQuarter[1].split('Q')[1], 10)*3-2}-01`;
-            return ({ bin: Object.keys(elem)[0], count: elem[Object.keys(elem)[0]], start });
-          })
-        };
-      });
-    })
-    .then(result => {
-      console.log(returnData);
-      return Promise.resolve(returnData);
-    })
-    .catch(err => Promise.reject(err));
-};
 
 /** survivalArea runs a query and returns an object used to make a line chart
  * @param client:mongodb -> mongo database
  * @param query:{field, value} -> an object with a field and a value
+ * @param chartType: string -> 'area' for survival area, 'line' for institution line 
  * returns returnData: {
- *   chartType: string -> 'line'
+ *   chartType: string -> 'area' or 'line'
  *   title: string,
  *   countTotal: number,
  *   survivalTotal: Array {type: string, score: number, data: Array {bin: string, count: number}}
  * }
  **/
 
-const survivalArea = (db, query) => {
+const survivalArea = (db, query, chartType) => {
   // generate the array of Totals
   let collection = db.collection('ptab');
   let totalQuery;
-  const returnData = { chartType: 'line', title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
+  const bySurvival = chartType === 'area'; //true for survival analysis, false for institution analysis
+  const returnData = { chartType, title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
   // parse the query {field, value}
   totalQuery = query.field === 'all' ? {} :
     Object.assign({
@@ -134,11 +46,14 @@ const survivalArea = (db, query) => {
   // general plan of attack:
   // 1. Assign a 'bin date' to each element. bin date is the first day of the quarter
   // 2. Group by survival status, push the bin date and count
+  const groupField = bySurvival ? "survivalStatus" : "PatentOwner.type";
+  const groupID = bySurvival ? "$survivalStatus.level" : "$PatentOwner.type";
+  const groupSort = bySurvival ? 'bin' : '_id';
   return collection.aggregate([
       { $match: totalQuery },
       {
         $project: {
-          "survivalStatus": 1,
+          [groupField]: 1,
           "quarter": {
             $cond: [{ $lte: [{ $month: "$DateFiled" }, 3] }, "Q1",
               {
@@ -158,11 +73,11 @@ const survivalArea = (db, query) => {
       { $sort: { year: 1, quarter: 1 } },
       {
         $group: {
-          _id: "$survivalStatus.level",
+          _id: groupID,
           bin: { $push: { $concat: ['$year', '_', '$quarter'] } }
         }
       },
-      { $sort: { 'bin': 1 } }
+      { $sort: { [groupSort]: 1 } }
     ]).toArray()
     .then(survivalTable => {
       returnData.survivalTotal = survivalTable.map(item => {
@@ -180,16 +95,18 @@ const survivalArea = (db, query) => {
         const allTimes = timeRange.map(item => {
           if (typeof(dataObject[item]) != 'undefined') {
             return ({
-              [item]: dataObject[item] });
+              [item]: dataObject[item]
+            });
           }
           else {
             return ({
-              [item]: 0 });
+              [item]: 0
+            });
           }
         });
         return {
-          type: [getBin(item._id).result],
-          score: getBin(item._id).level,
+          type: bySurvival ? [getBin(item._id).result] : item._id,
+          score: bySurvival ? getBin(item._id).level : 0,
           data: allTimes.map(elem => {
             const yearQuarter = Object.keys(elem)[0].split('_');
             const start = `${yearQuarter[0]}-${parseInt(yearQuarter[1].split('Q')[1], 10)*3-2}-01`;
@@ -285,6 +202,5 @@ const survivalAnalysis = (db, query) => {
 
 module.exports = {
   survivalAnalysis,
-  survivalArea,
-  institutionLine
+  survivalArea
 };
