@@ -10,7 +10,7 @@ getTrials()
     console.log('returned total count %d', result.max);
     console.log('fields returned %j', Object.keys(result.data[1]));
     console.log('returned cases\n', result.data.map(item => ({ IPR: item.trialNumber, status: item.prosecutionStatus, patentOwner: item.patentOwnerName })).filter(item => item.IPR.indexOf('IPR') !== -1));
-    return fse.writeJson('../../config/trials.json', result)
+    return fse.writeJson('../../config/trials.json', result.data.filter(item => item => item.IPR.indexOf('IPR') !== -1))
   })
   .then(() => {
     console.log('success!')
