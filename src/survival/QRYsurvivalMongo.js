@@ -77,7 +77,7 @@ const survivalArea = (db, query, chartType) => {
           bin: { $push: { $concat: ['$year', '_', '$quarter'] } }
         }
       },
-      { $sort: { [groupSort]: 1 } }
+      { $sort: { _id: -1, [groupSort]: 1 } }
     ]).toArray()
     .then(survivalTable => {
       returnData.survivalTotal = survivalTable.map(item => {
@@ -160,7 +160,7 @@ const survivalAnalysis = (db, query) => {
             count: { $sum: 1 }
           }
         },
-        { $sort: { _id: 1 } }
+        { $sort: { _id: -1 } }
       ]).toArray();
     })
     .then(survivalTable => {
@@ -187,7 +187,7 @@ const survivalAnalysis = (db, query) => {
             count: { $sum: 1 }
           }
         },
-        { $sort: { _id: 1 } }
+        { $sort: { _id: -1 } }
       ]).toArray();
     })
     .then(uniqueTable => {
