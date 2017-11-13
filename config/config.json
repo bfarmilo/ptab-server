@@ -5,7 +5,7 @@
     "redis": {
       "server": "ptab.redis.cache.windows.net", 
       "port":6379,
-      "expiry": 500
+      "expiry": 3600
     },
     "keyPrime": "v3yaVe6sDQD1QPwqdyKFriaaMTpAcJM5Wst/O24NiJc="
   },

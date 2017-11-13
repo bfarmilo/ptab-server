@@ -1,4 +1,3 @@
-//const fse = require('fse');
 const fetch = require('node-fetch');
 const { flatten } = require('../entities/helpers');
 
