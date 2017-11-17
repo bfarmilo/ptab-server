@@ -3,14 +3,14 @@
     "mongoUrl": "mongodb://localhost:27017/local",
     "maxRecords": 250,
     "redis": {
-      "server": "ptab.redis.cache.windows.net", 
+      "server": "localhost", 
       "port":6379,
       "expiry": 3600
     },
     "keyPrime": "v3yaVe6sDQD1QPwqdyKFriaaMTpAcJM5Wst/O24NiJc="
   },
-  "app_url": "https://ptab-analysis-bfarmilo.c9users.io",
-  "test_url": "http://localhost:3000",
+  "app_url": ["https://ptab-analysis-bfarmilo.c9users.io", "https://www.farmilostrategy.com"],
+  "test_url": [ "http://localhost:3000"],
   "survivalStatus": [
     "6_unbinned",
     "2_unaffected",

@@ -39,8 +39,8 @@ const startClient = (userID) => {
     startclient = redis.createClient();
   } else {
     startclient = redis.createClient(
-      config.database.redis.port,
-      config.database.redis.server /*,
+      config.database.redis.port /*,
+      config.database.redis.server,
       {
         password: config.database.keyPrime,
         tls: {

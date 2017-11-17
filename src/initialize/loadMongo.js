@@ -5,11 +5,11 @@ const { extractMultiples, extractTypes, flatten } = require('../entities/helpers
 
 
 /** 
-* setStatus takes a collection and assigns a 'survivalStatus' to each element
-* @param coll: mongodb.collection
-* @param schema: 'ptab' or 'byTrial'
-* @returns 'OK' or error
-*/
+ * setStatus takes a collection and assigns a 'survivalStatus' to each element
+ * @param coll: mongodb.collection
+ * @param schema: 'ptab' or 'byTrial'
+ * @returns 'OK' or error
+ */
 
 const setStatus = (coll, schema) => {
   let collection = coll;
@@ -20,6 +20,10 @@ const setStatus = (coll, schema) => {
         const petitioners = Array.isArray(item.Petitioner) ? item.Petitioner : extractMultiples(item.Petitioner).map(entity => extractTypes(entity, 0, "Petitioner"));
         const patentowners = Array.isArray(item.PatentOwner) ? item.PatentOwner : extractMultiples(item.PatentOwner).map(entity => extractTypes(entity, 0, "PatentOwner"));
         let judges = Array.isArray(item.AllJudges) ? flatten(item.AllJudges) : extractMultiples(item.AllJudges);
+        // now Build a set query
+        // change FWDStatus to lower case
+        // convert petition date to ISO dates
+        // add AllJudges, petitioners and patentOwners in array form
         const setQuery = {
           FWDStatus: item.FWDStatus.toLowerCase(),
           DateFiled: new Date(item.DateFiled),
@@ -29,30 +33,20 @@ const setStatus = (coll, schema) => {
         };
         if (schema === 'ptab') {
           // upsert survival Status (ptab collection only)
+          // add a claimIdx value for future de-duplication
           const health = survivalStatus(item.Status, item.FWDStatus.toLowerCase(), item.Instituted, item.Invalid);
           setQuery.survivalStatus = health; //ptab collection
           setQuery.claimIdx = `${item.Patent}-${item.Claim}`; //ptab collection
         }
         else {
+          // for the byTrials collection, add an institution date in ISO form (if defined)
           if (item.InstitutionDate != 'undefined') setQuery.InstitutionDate = new Date(item.InstitutionDate);
         }
-
-        // change FWDStatus to lower case
-        // convert petition date to ISO dates
         return {
           updateOne: {
             filter: { _id: item._id },
             update: {
-              $set: {
-                // survivalStatus: health, //ptab collection
-                InstitutionDate: item.InstitutionDate != 'undefined' ? new Date(item.InstitutionDate) : '', //byTrial collection
-                FWDStatus: item.FWDStatus.toLowerCase(),
-                DateFiled: new Date(item.DateFiled),
-                AllJudges: judges,
-                Petitioner: petitioners.map(item => ({ name: item.name.trim(), type: item.type })),
-                PatentOwner: patentowners.map(item => ({ name: item.name.trim(), type: item.type })),
-                // claimIdx: `${item.Patent}-${item.Claim}` //ptab collection
-              }
+              $set: setQuery
             },
             upsert: true
           }
@@ -75,11 +69,11 @@ const setStatus = (coll, schema) => {
 // create a document of Status types and an index
 
 /**
-* getPetitioners generates a new collection of petitioners
-* @param collection: mongodb collection -> the collection to scan
-* @param newcoll: mongodb collection -> the new collection to create, containing unique petitioners {name,type}
-* @returns string status message
-**/
+ * getPetitioners generates a new collection of petitioners
+ * @param collection: mongodb collection -> the collection to scan
+ * @param newcoll: mongodb collection -> the new collection to create, containing unique petitioners {name,type}
+ * @returns string status message
+ **/
 
 const getPetitioners = (collection, newcoll) => {
   return collection.distinct('Petitioner', {})
@@ -101,12 +95,12 @@ const getPetitioners = (collection, newcoll) => {
 }
 
 /**
-* getPatentOwners generates a new collection of petitioners
-* @param collection: mongodb collection -> the collection to scan
-* @param newcoll: mongodb collection -> the new collection to create, containing unique petitioners {name,type}
-* @returns string status message
-* TODO: just merge with getPetitioners into one function, they are basically identical
-**/
+ * getPatentOwners generates a new collection of petitioners
+ * @param collection: mongodb collection -> the collection to scan
+ * @param newcoll: mongodb collection -> the new collection to create, containing unique petitioners {name,type}
+ * @returns string status message
+ * TODO: just merge with getPetitioners into one function, they are basically identical
+ **/
 
 const getPatentOwners = (collection, newcoll) => {
   return collection.distinct('PatentOwner', {})
@@ -169,9 +163,97 @@ const mapPatentClaim = (collection, newcoll) => {
     .catch(err => Promise.reject(err))
 }
 
+/** ImportPTAB takes a collection from the Ptab trials format and maps it to the byTrials collection format
+ * input schema {
+ *   applicationNumber,
+ *   patentNumber,
+ *   patentOwnerName,
+ *   prosecutionStatus,
+ *   filingDate,
+ *   petitionerPartyName,
+ *   lastModifiedDatetime,
+ *   accordedFilingDate,
+ *   institutionDecisionDate,
+ *   trialNumber,
+ *   inventorName,
+ *   links: [
+ *     {rel, href}
+ *   ]
+ * }
+ * 
+ * output schema {
+ *   IPR -> trialNumber,
+ *   DateFiled -> ISODate(filingDate),
+ *   Status -> prosecutionStatus,
+ *   FWDStatus,
+ *   AllJudges,
+ *   AuthorJudge,
+ *   Petitioner: [
+ *     {type, name -> petitionerPartyName}
+ *   ],
+ *   PatentOwner: [
+ *     {type, name -> patentOwnerName}
+ *   ],
+ *   PatentNumber -> patentNumber,
+ *   CaseLink,
+ *   MainUSPC,
+ *   ClaimsListed: [],
+ *   ClaimsInstituted: [],
+ *   ClaimsUnpatentable: [],
+ *   InstitutionDate -> ISODate(institutionDecisionDate)
+ * }
+ * 
+ * 
+ **/
+
+const importPTAB = (db, inputCollection) => {
+  return inputCollection.find({}).toArray()
+    .then(result => {
+      return result.map(record => {
+        const newRecord = {
+          IPR: record.trialNumber,
+          DateFiled: new Date(record.filingDate),
+          Status: record.prosecutionStatus,
+          Petitioner: [].concat({ name: record.petitionerPartyName }),
+          PatentOwner: [].concat({ name: record.patentOwnerName }),
+          PatentNumber: record.patentNumber
+        };
+        if (record.InstitutionDate != 'undefined') newRecord.InstitutionDate = new Date(record.institutionDecisionDate);
+        return newRecord;
+      });
+    })
+    .then(resultCollection => db.collection('newPTAB').insert(resultCollection))
+    .then(result => Promise.resolve(result))
+    .catch(err => Promise.reject(err));
+};
+
+// TODO fix this function, not working and needs a re-think
+const updatePTAB = (db, inputCollection) => {
+  // lookup the PatentOwner and Petitioner types
+  // searching for 7 letters seems to be pretty reliable
+  return inputCollection.find({}).toArray()
+  .then(result => result.map(record => {
+    return db.collection('Petitioners').find({name: record.Petitioners[0].name})
+    .then(match => {
+      console.log(match);
+      if(match.length !== 0) {
+        record.Petitioners[0].type = match.type;
+      } else {
+        record.Petitioners[0].type = 'unknown';
+      }
+      return;
+    })
+  }))
+  .then(newTable => inputCollection.update())
+    .then(result => Promise.resolve(result))
+    .catch(err => Promise.reject(err));
+}
+
 module.exports = {
   setStatus,
   getPetitioners,
   getPatentOwners,
-  mapPatentClaim
-}
+  mapPatentClaim,
+  importPTAB,
+  updatePTAB
+};

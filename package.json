@@ -9,8 +9,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "startMongo": "mongod --bind_ip=$IP --dbpath=../data --nojournal \"$@\" & sudo service redis-server start",
-    "resetMongo": "mongod --bind_ip=$IP --dbpath=../data --nojournal --repair",
+    "startMongo": "../mongod",
+    "resetMongo": "../mongodrepair",
     "start": "node server.js",
     "startlocal": "node server.js -dev"
   },
