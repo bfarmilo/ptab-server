@@ -12,7 +12,7 @@ console.info('using mode %s, adding CORS to origin %s', process.argv[2], header)
 app.use((req, res, next) => {
     // enable CORS from the app location
     let origin = req.headers.origin;
-    if (config.app_url.indexOf(origin) >= 0) {
+    if (header.indexOf(origin) >= 0) {
         res.header("Access-Control-Allow-Origin", origin);
     }
     next();

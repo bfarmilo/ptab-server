@@ -25,7 +25,7 @@ const timeRange = [
 
 /** survivalArea runs a query and returns an object used to make a line chart
  * @param client:mongodb -> mongo database
- * @param query:{field, value} -> an object with a field and a value
+ * @param query:{field, Array<value>} -> an object with a field and an array of values
  * @param chartType: string -> 'area' for survival area, 'line' for institution line 
  * returns returnData: {
  *   chartType: string -> 'area' or 'line'
@@ -38,15 +38,16 @@ const timeRange = [
 const survivalArea = (db, query, chartType) => {
   // generate the array of Totals
   let collection = db.collection('ptab');
-  let totalQuery;
+  let totalQuery = {};
   const bySurvival = chartType === 'area'; //true for survival analysis, false for institution analysis
   const returnData = { chartType, title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
   // parse the query {field, value}
-  totalQuery = query.field === 'all' ? {} :
-    Object.assign({
-      [query.field]: query.value === 'true' ? true : query.value
-    });
-
+  if (query.field !== 'all') {
+    totalQuery.$or = query.value.map(item =>
+      Object.assign({
+        [query.field]: item === 'true' ? true : item
+      }));
+  }
   console.log(typeof(totalQuery[query.field]));
   // general plan of attack:
   // 1. Assign a 'bin date' to each element. bin date is the first day of the quarter
@@ -131,7 +132,7 @@ const survivalArea = (db, query, chartType) => {
 
 /* survivalAnalysis runs a query and returns an object used to make a pie chart
 @param client: mongodb - mongo database
-@param query: {field, value} - an object with a field  (eg 'PatentOwner' or 'all') and value(eg 'npe')
+@param query: {field, Array<value>} - an object with a field  (eg 'PatentOwner' or 'all') and an array of values(eg ['npe'])
 returns returnData: {
   chartType: string -> 'pie'
   title: string, 
@@ -144,13 +145,17 @@ returns returnData: {
 
 const survivalAnalysis = (db, query) => {
   let collection = db.collection('ptab');
-  let totalQuery, uniqueQuery;
+  let totalQuery = {};
+  let uniqueQuery = {};
   const returnData = { chartType: 'pie', title: `${query.field === 'all' ? 'all' : `${query.field}:${query.value}`}` };
   // parse the query {field, value}
-  totalQuery = query.field === 'all' ? {} :
-    Object.assign({
-      [query.field]: query.value
-    });
+  if (query.field !== 'all') {
+    totalQuery.$or = query.value.map(item => {
+      return Object.assign({
+        [query.field]: item
+      });
+    })
+  }
   return collection.aggregate([
       { $match: totalQuery },
     ]).toArray()
@@ -171,12 +176,15 @@ const survivalAnalysis = (db, query) => {
     .then(survivalTable => {
       returnData.survivalTotal = survivalTable.map(item => ({ type: [item._id.result], score: item._id.level, data: [{ count: item.count }] }));
       collection = db.collection('byClaims');
-      uniqueQuery = query.field === 'all' ? {} : Object.assign({
-        ['Petitions.'.concat(query.field)]: query.value
-      });
-      if (query.field.includes('PatentOwner')) uniqueQuery = Object.assign({
-        ['_id.'.concat(query.field)]: query.value
-      });
+      if (query.field !== 'all') {
+        query.field.includes('PatentOwner') ?
+          uniqueQuery.$or = query.value.map(item => Object.assign({
+            ['_id.'.concat(query.field)]: item
+          })) :
+          uniqueQuery.$or = query.value.map(item => Object.assign({
+            ['Petitions.'.concat(query.field)]: item
+          }))
+      }
       console.info('running unique query with value %j', uniqueQuery);
       return collection.aggregate([
         { $match: uniqueQuery },

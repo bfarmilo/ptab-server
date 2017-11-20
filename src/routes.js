@@ -87,7 +87,7 @@ const cache = (req, res, next) => {
     } else if (req.method === 'POST') {
       const request = JSON.parse(req.body);
       if (!clientActive) client = startClient(request.user);
-      const title = `${request.query.value === '' ? `${req.path}:${request.query.field}` : `${req.path}:${request.query.field}:${request.query.value}`}`;
+      const title = `${request.query.value[0] === '' ? `${req.path}:${request.query.field}` : `${req.path}:${request.query.field}:${request.query.value}`}`;
       console.info('looking for cache entry for %s', title);
       client.get(title, function (err, data) {
         if (err) throw err;
