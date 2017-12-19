@@ -132,7 +132,7 @@ const survivalArea = (db, query, chartType) => {
 
 /* survivalAnalysis runs a query and returns an object used to make a pie chart
 @param client: mongodb - mongo database
-@param query: {field, Array<value>} - an object with a field  (eg 'PatentOwner' or 'all') and an array of values(eg ['npe'])
+@param query: {field:string, Array<value:string>} - an object with a field  (eg 'PatentOwner' or 'all') and an array of values(eg ['npe'])
 returns returnData: {
   chartType: string -> 'pie'
   title: string, 

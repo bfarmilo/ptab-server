@@ -216,7 +216,8 @@ const importPTAB = (db, inputCollection) => {
           Status: record.prosecutionStatus,
           Petitioner: [].concat({ name: record.petitionerPartyName }),
           PatentOwner: [].concat({ name: record.patentOwnerName }),
-          PatentNumber: record.patentNumber
+          PatentNumber: record.patentNumber,
+          CaseLink: record.links.filter(item => item.rel === 'self')[0].href
         };
         if (record.InstitutionDate != 'undefined') newRecord.InstitutionDate = new Date(record.institutionDecisionDate);
         return newRecord;
