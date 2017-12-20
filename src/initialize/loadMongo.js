@@ -3,6 +3,13 @@ const { extractMultiples, extractTypes, flatten } = require('../entities/helpers
 
 
 
+const loadNewCollection = (db, collectionName, data) => {
+  return db.createCollection(collectionName)
+    .then(collection => db.collection(collectionName).insert(data))
+    .then(result => Promise.resolve(result))
+    .catch(err => Promise.reject(err));
+}
+
 
 /** 
  * setStatus takes a collection and assigns a 'survivalStatus' to each element
@@ -84,9 +91,9 @@ const getPetitioners = (collection, newcoll) => {
         name: partyComponents[1],
         type: partyComponents[2]
       } : {
-        name: item,
-        type: "unknown"
-      }
+          name: item,
+          type: "unknown"
+        }
     }))
     .then(petitionerCollection => newcoll.insert(petitionerCollection))
     .then(fullCollection => newcoll.distinct)
@@ -102,8 +109,8 @@ const getPetitioners = (collection, newcoll) => {
  * TODO: just merge with getPetitioners into one function, they are basically identical
  **/
 
-const getPatentOwners = (collection, newcoll) => {
-  return collection.distinct('PatentOwner', {})
+const getPatentOwners = (collection, newcoll, entity) => {
+  return collection.distinct(entity, {})
     .then(result => result.map(item => item.trim()))
     .then(patentowners => patentowners.map(item => {
       const partyComponents = item.match(/(.*)? \((\w+)\)/);
@@ -111,9 +118,9 @@ const getPatentOwners = (collection, newcoll) => {
         name: partyComponents[1],
         type: partyComponents[2]
       } : {
-        name: item,
-        type: "unknown"
-      }
+          name: item,
+          type: "unknown"
+        }
     }))
     .then(resultCollection => newcoll.insert(resultCollection))
     .then(status => Promise.resolve(status))
@@ -143,21 +150,21 @@ const getPatentOwners = (collection, newcoll) => {
 
 const mapPatentClaim = (collection, newcoll) => {
   return collection.aggregate([{
-      $group: {
-        _id: { claimIdx: '$claimIdx', PatentOwner: '$PatentOwner' },
-        worstStatus: { $max: '$survivalStatus.level' },
-        Petitions: {
-          $push: {
-            IPR: '$IPR',
-            DateFiled: '$DateFiled',
-            FWDStatus: '$FWDStatus',
-            Petitioner: '$Petitioner',
-            survivalStatus: '$survivalStatus',
-            id: '$_id'
-          }
+    $group: {
+      _id: { claimIdx: '$claimIdx', PatentOwner: '$PatentOwner' },
+      worstStatus: { $max: '$survivalStatus.level' },
+      Petitions: {
+        $push: {
+          IPR: '$IPR',
+          DateFiled: '$DateFiled',
+          FWDStatus: '$FWDStatus',
+          Petitioner: '$Petitioner',
+          survivalStatus: '$survivalStatus',
+          id: '$_id'
         }
       }
-    }]).toArray()
+    }
+  }]).toArray()
     .then(result => newcoll.insert(result))
     .then(status => Promise.resolve(status))
     .catch(err => Promise.reject(err))
@@ -206,24 +213,23 @@ const mapPatentClaim = (collection, newcoll) => {
  * 
  **/
 
-const importPTAB = (db, inputCollection) => {
-  return inputCollection.find({}).toArray()
-    .then(result => {
-      return result.map(record => {
-        const newRecord = {
-          IPR: record.trialNumber,
-          DateFiled: new Date(record.filingDate),
-          Status: record.prosecutionStatus,
-          Petitioner: [].concat({ name: record.petitionerPartyName }),
-          PatentOwner: [].concat({ name: record.patentOwnerName }),
-          PatentNumber: record.patentNumber,
-          CaseLink: record.links.filter(item => item.rel === 'self')[0].href
-        };
-        if (record.InstitutionDate != 'undefined') newRecord.InstitutionDate = new Date(record.institutionDecisionDate);
-        return newRecord;
-      });
-    })
-    .then(resultCollection => db.collection('newPTAB').insert(resultCollection))
+const importPTAB = (db, newcoll, data) => {
+  /* return inputCollection.find({}).toArray()
+    .then(result => { */
+  return db.collection(newcoll).insert(data.map(record => {
+    const newRecord = {
+      IPR: record.trialNumber,
+      DateFiled: new Date(record.filingDate),
+      Status: record.prosecutionStatus,
+      Petitioner: [].concat({ name: record.petitionerPartyName }),
+      PatentOwner: [].concat({ name: record.patentOwnerName }),
+      PatentNumber: record.patentNumber,
+      CaseLink: record.links.filter(item => item.rel === 'self')[0].href
+    };
+    if (record.InstitutionDate != 'undefined') newRecord.InstitutionDate = new Date(record.institutionDecisionDate);
+    return newRecord;
+  })) /*;})
+    .then(resultCollection => db.collection(newcoll).insert(resultCollection)) */
     .then(result => Promise.resolve(result))
     .catch(err => Promise.reject(err));
 };
@@ -233,19 +239,19 @@ const updatePTAB = (db, inputCollection) => {
   // lookup the PatentOwner and Petitioner types
   // searching for 7 letters seems to be pretty reliable
   return inputCollection.find({}).toArray()
-  .then(result => result.map(record => {
-    return db.collection('Petitioners').find({name: record.Petitioners[0].name})
-    .then(match => {
-      console.log(match);
-      if(match.length !== 0) {
-        record.Petitioners[0].type = match.type;
-      } else {
-        record.Petitioners[0].type = 'unknown';
-      }
-      return;
-    })
-  }))
-  .then(newTable => inputCollection.update())
+    .then(result => result.map(record => {
+      return db.collection('Petitioners').find({ name: record.Petitioners[0].name })
+        .then(match => {
+          console.log(match);
+          if (match.length !== 0) {
+            record.Petitioners[0].type = match.type;
+          } else {
+            record.Petitioners[0].type = 'unknown';
+          }
+          return;
+        })
+    }))
+    .then(newTable => inputCollection.update())
     .then(result => Promise.resolve(result))
     .catch(err => Promise.reject(err));
 }
@@ -256,5 +262,6 @@ module.exports = {
   getPatentOwners,
   mapPatentClaim,
   importPTAB,
-  updatePTAB
+  updatePTAB,
+  loadNewCollection
 };

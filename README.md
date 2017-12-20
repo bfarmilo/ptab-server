@@ -22,6 +22,7 @@ An API endpoint which acts as middleware between a Redis store of PTAB IPR data 
 - Improve error notifications
 - update logging
 - implement table sort-by !
+- migrate queries to new document structure !!
 - pull data from PTAB swagger API
  - roughly: get all trials where modified date > last download
  - (iterate through those if required since they only come down 100 at a time)

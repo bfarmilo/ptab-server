@@ -8,11 +8,11 @@
   },
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "docker start ptab-mongo && for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ptab-mongo`) do @set MONGOIP=%a&& set port=3000&&node ./src/initialize/loadMongo.test.js",
     "startMongo": "../mongod",
     "resetMongo": "../mongodrepair",
     "start": "node server.js",
-    "startlocal": "node server.js -dev"
+    "startlocal": "docker start ptab-mongo && for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ptab-mongo`) do @set MONGOIP=%a&& set port=3000&& node server.js -dev"
   },
   "author": "",
   "license": "ISC",

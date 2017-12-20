@@ -33,20 +33,17 @@ const searchableSet = [
   'DateFiled'
 ];
 
+
+/** Redis Cache
+ * 
+ */
 const startClient = (userID) => {
   let startclient;
   if (localMode) {
     startclient = redis.createClient();
   } else {
     startclient = redis.createClient(
-      config.database.redis.port /*,
-      config.database.redis.server,
-      {
-        password: config.database.keyPrime,
-        tls: {
-          servername: config.database.server
-        }
-      } */
+      config.database.redis.port
     )
   }
   setListener(startclient, userID);
@@ -71,69 +68,54 @@ const setListener = (connection, userID) => {
 }
 
 const cache = (req, res, next) => {
-    if (req.method === 'GET') {
-      if (!clientActive) client = startClient(req.query.user);
+  if (req.method === 'GET') {
+    if (!clientActive) client = startClient(req.query.user);
     const table = decodeURIComponent(req.query.table);
     if (table === undefined) next();
     client.get(table, function (err, data) {
-        if (err) throw err;
+      if (err) throw err;
 
-        if (data !== null) {
-            res.json(JSON.parse(data));
-        } else {
-            next();
-        }
+      if (data !== null) {
+        res.json(JSON.parse(data));
+      } else {
+        next();
+      }
     });
-    } else if (req.method === 'POST') {
-      const request = JSON.parse(req.body);
-      if (!clientActive) client = startClient(request.user);
-      const title = `${request.query.value[0] === '' ? `${req.path}:${request.query.field}` : `${req.path}:${request.query.field}:${request.query.value}`}`;
-      console.info('looking for cache entry for %s', title);
-      client.get(title, function (err, data) {
-        if (err) throw err;
-        if (data !== null) {
-          console.info('cache entry found');
-          res.json(JSON.parse(data));
-        } else {
-          console.info('cache miss, data returned', data);
-          next();
-        }
-      })
-    }
+  } else if (req.method === 'POST') {
+    const request = JSON.parse(req.body);
+    if (!clientActive) client = startClient(request.user);
+    const title = `${request.query.value[0] === '' ? `${req.path}:${request.query.field}` : `${req.path}:${request.query.field}:${request.query.value}`}`;
+    console.info('looking for cache entry for %s', title);
+    client.get(title, function (err, data) {
+      if (err) throw err;
+      if (data !== null) {
+        console.info('cache entry found');
+        res.json(JSON.parse(data));
+      } else {
+        console.info('cache miss, data returned', data);
+        next();
+      }
+    })
+  }
 }
 
 const setCache = (user, table, value) => {
-if (!clientActive) client = startClient(user);
-return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.database.redis.expiry);
+  if (!clientActive) client = startClient(user);
+  return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.database.redis.expiry);
 }
 
+/** end REDIS cache */
 
 router.use(bodyParser.text());
-
-
-/* /Reset route currently only used for redis-only db, deprecated
-
-// check redis DB, initialize if req'd
-router.get('/reset', (req, res, next) => {
-  if (!clientActive) client = startClient(req.query.user);
-  client.flushdb()
-    .then(() => initDB(client))
-    .then(() => getEntityData(client))
-    .then(ok => {
-      console.log(ok)
-    })
-    .catch(err => console.error(err));
-})
-*/
 
 /* GET list of records by query */
 router.post('/run', function (req, res, next) {
   console.info('post detected with values %j', JSON.parse(req.body));
   const request = JSON.parse(req.body);
   return connect()
-  .then(database => {
-    db = database;
-    return lookUp(db, request.query, request.cursor)
+    .then(database => {
+      db = database;
+      return lookUp(db, request.query, request.cursor)
     })
     .then(result => {
       console.log('%d results returned', result.count)
@@ -142,23 +124,23 @@ router.post('/run', function (req, res, next) {
     .catch(err => console.error(err));
 });
 
-// gets a list of fields for querying, cached
-router.get('/fields', cache, function (req, res, next) {
+// gets a list of fields for querying, ** cache disabled **
+router.get('/fields', function (req, res, next) {
   return connect()
-  .then(database => {
-    db = database;
-    collection = db.collection('ptab');
-    return collection.findOne();
-  })
-  .then(sample => Object.keys(sample).map(item => Array.isArray(sample[item]) 
-  ? Object.keys(sample[item][0]).map(subitem => `${item}.${subitem}`) 
-  : item)
-  .reduce((a, b) => a.concat(b), []))
-    .then(result => {
-      res.json(result);
-      return setCache(req.query.user, 'fields', result);
+    .then(database => {
+      db = database;
+      collection = db.collection('byTrial');
+      return collection.findOne();
     })
-    .then(status => console.info(status))
+    .then(sample => Object.keys(sample).map(item => (item.includes('Petitioner') || item.includes('PatentOwner'))
+      ? Object.keys(sample[item][0]).map(subitem => `${item}.${subitem}`)
+      : item)
+      .reduce((a, b) => a.concat(b), []))
+    .then(result => {
+      return res.json(result);
+      // return setCache(req.query.user, 'fields', result);
+    })
+    .then(status => console.info(status.statusCode))
     .catch(err => console.error(err));
 });
 
@@ -168,19 +150,19 @@ router.get('/tables', function (req, res, next) {
   // TODO: So given a field, return the list of allowable values for graphing
   // TODO: ie, FWDStatus: 
   // TODO: Call getEntityData to get a list of entity types (npe, etc)
-    res.json(searchableSet)
-    // .catch(err => console.error(err));
+  res.json(searchableSet)
+  // .catch(err => console.error(err));
 });
 
 // get a list of unique items for the selected table
 router.post('/chartvalues', cache, (req, res, next) => {
   const request = JSON.parse(req.body);
   console.log('received request for values in %j', request.query);
-    connect()
+  connect()
     .then(database => {
-        db = database;
-        collection = db.collection('ptab')
-        return;
+      db = database;
+      collection = db.collection('ptab')
+      return;
     })
     .then(() => getDistinct(collection, request.query.field))
     .then(result => {
@@ -192,16 +174,16 @@ router.post('/chartvalues', cache, (req, res, next) => {
 
 // survival data used in graphs - cached
 router.post('/survival', cache, function (req, res, next) {
-  const request=JSON.parse(req.body);
+  const request = JSON.parse(req.body);
   connect()
     .then(database => {
-        db = database;
-        return;
+      db = database;
+      return;
     })
     .then(() => {
-  // pulls the count of claim survival statistics
-  console.log('received request to update chart %d', request.chart );
-  return survivalAnalysis(db, request.query);
+      // pulls the count of claim survival statistics
+      console.log('received request to update chart %d', request.chart);
+      return survivalAnalysis(db, request.query);
     })
     .then(result => {
       res.json(result);
@@ -214,16 +196,16 @@ router.post('/survival', cache, function (req, res, next) {
 
 // survival data used in stacked area graphs - cached
 router.post('/survivalarea', cache, function (req, res, next) {
-  const request=JSON.parse(req.body);
+  const request = JSON.parse(req.body);
   connect()
     .then(database => {
-        db = database;
-        return;
+      db = database;
+      return;
     })
     .then(() => {
-  // pulls the count of claim survival statistics
-  console.log('received request to update chart %d', request.chart );
-  return survivalArea(db, request.query, request.chartType);
+      // pulls the count of claim survival statistics
+      console.log('received request to update chart %d', request.chart);
+      return survivalArea(db, request.query, request.chartType);
     })
     .then(result => {
       res.json(result);
