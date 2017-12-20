@@ -27,7 +27,7 @@ const timeRange = [
  * @param client:mongodb -> mongo database
  * @param query:{field, Array<value>} -> an object with a field and an array of values
  * @param chartType: string -> 'area' for survival area, 'line' for institution line 
- * returns returnData: {
+ * @returns returnData: {
  *   chartType: string -> 'area' or 'line'
  *   title: string,
  *   countTotal: number,
@@ -130,17 +130,17 @@ const survivalArea = (db, query, chartType) => {
 };
 
 
-/* survivalAnalysis runs a query and returns an object used to make a pie chart
-@param client: mongodb - mongo database
-@param query: {field:string, Array<value:string>} - an object with a field  (eg 'PatentOwner' or 'all') and an array of values(eg ['npe'])
-returns returnData: {
-  chartType: string -> 'pie'
-  title: string, 
-  countTotal: number,
-  countUnique: number,
-  survivalTotal: {type: string, data: [{count: number}]},
-  survivalUnique: {type: string, data: [{count: number}]}
-}
+/** survivalAnalysis runs a query and returns an object used to make a pie chart
+* @param {mongodb} client: mongodb - mongo database
+* @param {field:string, Array<value:string>} query: an object with a field  (eg 'PatentOwner' or 'all') and an array of values(eg ['npe'])
+* @returns {Promise} resolving to { returnData: {
+*   chartType: {string} -> 'pie'
+*   title: {string}, 
+*   countTotal: {number},
+*   countUnique: {number},
+*   survivalTotal: {type: {string}, data: [{count: number}]},
+*   survivalUnique: {type: {string}, data: [{count: number}]}
+}}
 */
 
 const survivalAnalysis = (db, query) => {
