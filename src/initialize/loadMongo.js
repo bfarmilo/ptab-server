@@ -3,11 +3,16 @@ const { extractMultiples, extractTypes, flatten } = require('../entities/helpers
 
 
 
-const loadNewCollection = (db, collectionName, data) => {
-  return db.createCollection(collectionName)
-    .then(collection => db.collection(collectionName).insert(data))
-    .then(result => Promise.resolve(result))
-    .catch(err => Promise.reject(err));
+const loadNewCollection = async (db, collectionName, data) => {
+  try {
+    await db.createCollection(collectionName);
+    await Promise.all(
+      data.map(async (item) => await db.collection(collectionName).insert(item))
+    );
+    return `${collectionName} collection created`;
+  } catch (err) {
+    return err;
+  }
 }
 
 
@@ -256,6 +261,56 @@ const updatePTAB = (db, inputCollection) => {
     .catch(err => Promise.reject(err));
 }
 
+/**
+ * mergeNewRecords compares two collections and returns a list of IPR case numbers
+ * that are in the new list but not in the old list.
+ * 
+ * @param {Object: mongoDB} db 
+ * @param {string} inputCollection 
+ * @param {string} mainCollection
+ * @returns {Promise -> Array<{ IPR:{string} }>}
+ */
+const mergeNewRecords = (db, inputCollection, mainCollection) => {
+  const writeStatus = {};
+  return db.collection(inputCollection).find({}).toArray()
+    .then(firstResult => db.collection('merge').insert(firstResult.map(item => {
+      item.source = 'old';
+      return item;
+    })))
+    .then(() => db.collection(mainCollection).find({}).toArray())
+    .then(newResult => db.collection('merge').insert(newResult.map(item => {
+      item.source = 'new';
+      return item;
+    })))
+    .then(() => db.collection('merge').aggregate([
+      { $project: { IPR: 1, source: 1 } },
+      { $group: { _id: "$IPR", matches: { $sum: 1 } } },
+      { $match: { matches: 1 } },
+      { $project: { IPR: "$_id", _id: 0 } },
+      {
+        $lookup: {
+          from: "ptabRaw",
+          localField: "IPR",
+          foreignField: "IPR",
+          as: "newRecord"
+        }
+      },
+      { $project: { "newRecord._id": 0 } }
+    ]).toArray())
+    .then(result => {
+      writeStatus.added = result.filter(item => item.newRecord.length !== 0).length;
+      if (writeStatus.added > 0) {
+        return db.collection('byTrial').insert(
+          result.filter(item => item.newRecord.length !== 0).map(item => item.newRecord[0])
+        )
+      }
+      return;
+    })
+    .then(() => db.collection('merge').drop())
+    .then(result => Promise.resolve(writeStatus))
+    .catch(err => Promise.reject(err));
+}
+
 module.exports = {
   setStatus,
   getPetitioners,
@@ -263,5 +318,6 @@ module.exports = {
   mapPatentClaim,
   importPTAB,
   updatePTAB,
-  loadNewCollection
+  loadNewCollection,
+  mergeNewRecords
 };

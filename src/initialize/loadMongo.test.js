@@ -1,39 +1,76 @@
-const { loadNewCollection, setStatus, fixDate, makeFWDStatus, getPatentOwners, mapPatentClaim, importPTAB } = require('./loadMongo');
+const {
+  mergeNewRecords,
+  loadNewCollection,
+  setStatus,
+  fixDate,
+  makeFWDStatus,
+  getPatentOwners,
+  mapPatentClaim,
+  importPTAB
+  } = require('./loadMongo');
 const { connect } = require('../connect/mongoConnect');
-const trialList = require ('../../config/byCase.json');
+const trialList = require('../../config/byCase.json');
 const ptabList = require('../../config/trials.json');
 
 let db, collection;
 
-connect()
-  .then(dbObject => {
-    db = dbObject;
-    collection = dbObject.collection('byTrial');
-    return;
-  })
-  .then(() => {
-    // then main function goes here
-    return importPTAB(db, 'ptabRaw', ptabList);
-    
-    // return setStatus(collection);
-    // return makeFWDStatus(collection, db.collection('FWDStatusTypes'));
-    // return getPatentOwners(collection, db.collection('Petitioners'), 'Petitioner');
-    // return getPatentOwners(collection, db.collection('PatentOwners'));
-    // return mapPatentClaim(collection, db.collection('byClaims'));
-  })
-  .then(result => {
-    console.log(result);
-  })
-  .then(result => {
-    // checking the result
-    return //collection.find().toArray()
-    /*     let unique = new Set(result.map(item => `${item.Patent}:${item.Claim}`));
-        console.log(unique.size); */
-  })
-  .then(result => console.log(result))
-  .then(() => db.close())
-  .catch(err => {
+const loadFirst = async (collectionName, data) => {
+  try {
+    db = await connect();
+    console.log(await loadNewCollection(db, collectionName, data))
+    db.close();
+  } catch (err) {
+    console.error(err)
+    db.close();
+  }
+}
+
+const testLoad = async (collectionName) => {
+  try {
+    db = await connect();
+    console.log(`${collectionName} has ${await db.collection(collectionName).count()} records`);
+    console.log(await db.collection(collectionName).find({}, {limit:1}).toArray());
+    db.close();
+  } catch (err) {
     console.error(err);
     db.close();
-  })
+  }
+}
+
+const purge = async (collectionName) => {
+  try {
+    db = await connect();
+    console.log(await db.collection(collectionName).drop());
+    db.close();
+  } catch (err) {
+    console.error(err);
+    db.close();
+  }
+}
+
+const processData = async () => {
+  try {
+    db = await connect();
+    collection = dbObject.collection('byTrial');
+    // then main function goes here
+    console.log(await setStatus(collection))
+    db.close();
+
+    // mergeNewRecords(db, 'byTrial', 'ptabRaw')
+    // setStatus(collection);
+    // makeFWDStatus(collection, db.collection('FWDStatusTypes'));
+    // getPatentOwners(collection, db.collection('Petitioners'), 'Petitioner');
+    // getPatentOwners(collection, db.collection('PatentOwners'));
+    // mapPatentClaim(collection, db.collection('byClaims'));
+
+  } catch (err) {
+    console.error(err);
+    db.close();
+  }
+}
+
+//loadFirst('byTrial', trialList);
+//loadFirst('ptabRaw', ptabList);
+return Promise.all(['byTrial', 'ptabRaw'].map(testLoad));
+
 
