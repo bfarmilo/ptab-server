@@ -8,10 +8,9 @@
   },
   "main": "server.js",
   "scripts": {
-    "cosmos": "docker start cosmosdb&& for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' cosmosdb`) do @set MONGOIP=%a&& set port=3000&& node ./src/initialize/loadMongo.test.js",
+    "cosmos": "docker start cosmosdb&& for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' cosmosdb`) do @set MONGOIP=%a&& set port=3000&& node server.js -dev",
+    "loadCosmos": "docker start cosmosdb&& for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' cosmosdb`) do @set MONGOIP=%a&& set port=3000&&node ./src/initialize/loadMongo.test.js",
     "test": "docker start ptab-mongo && for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ptab-mongo`) do @set MONGOIP=%a&& set port=3000&&node ./src/initialize/loadMongo.test.js",
-    "startMongo": "../mongod",
-    "resetMongo": "../mongodrepair",
     "start": "node server.js",
     "startlocal": "docker start ptab-mongo && for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ptab-mongo`) do @set MONGOIP=%a&& set port=3000&& node server.js -dev"
   },
