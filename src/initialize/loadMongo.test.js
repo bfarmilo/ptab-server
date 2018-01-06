@@ -28,8 +28,9 @@ const loadFirst = async (collectionName, data) => {
 const testLoad = async (collectionName) => {
   try {
     db = await connect();
-    console.log(`${collectionName} has ${await db.collection(collectionName).count()} records`);
-    console.log(await db.collection(collectionName).find({}, {limit:1}).toArray());
+    const query = {Petitioner: {$size : 2}};
+    console.log(`query to ${collectionName} has ${await db.collection(collectionName).find(query).count()} records`);
+    console.log(JSON.stringify(await db.collection(collectionName).find(query, { limit: 2 }).toArray(), null, 2));
     db.close();
   } catch (err) {
     console.error(err);
@@ -51,9 +52,11 @@ const purge = async (collectionName) => {
 const processData = async () => {
   try {
     db = await connect();
-    collection = dbObject.collection('byTrial');
+    collection = db.collection('byTrial');
     // then main function goes here
-    console.log(await setStatus(collection))
+    for (let i = 450; i < 500; i++) {
+      console.log(await setStatus(collection, 'byTrial', i));
+    };
     db.close();
 
     // mergeNewRecords(db, 'byTrial', 'ptabRaw')
@@ -71,6 +74,7 @@ const processData = async () => {
 
 //loadFirst('byTrial', trialList);
 //loadFirst('ptabRaw', ptabList);
-return Promise.all(['byTrial', 'ptabRaw'].map(testLoad));
+testLoad('byTrial');
+//processData();
 
 

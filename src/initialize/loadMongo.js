@@ -23,10 +23,12 @@ const loadNewCollection = async (db, collectionName, data) => {
  * @returns 'OK' or error
  */
 
-const setStatus = (coll, schema) => {
+const setStatus = (coll, schema, offset) => {
+  const scaling = 10;
   let collection = coll;
-  return collection.find({}).toArray()
+  return collection.find({}).skip(offset*scaling).limit(scaling).toArray()
     .then(result => {
+      console.log(offset*scaling);
       return result.map(item => {
         // split any multiples into arrays (unless they already are arrays)
         const petitioners = Array.isArray(item.Petitioner) ? item.Petitioner : extractMultiples(item.Petitioner).map(entity => extractTypes(entity, 0, "Petitioner"));
