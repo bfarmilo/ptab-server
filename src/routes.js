@@ -1,19 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const redis = require('promise-redis')();
 const bodyParser = require('body-parser');
 
 const { lookUp } = require('./scan/lookupRecordsMongo');
-const { getDetailTable } = require('./survivaldetail/getDetailTable');
 const { survivalAnalysis, survivalArea } = require('./survival/QRYsurvivalMongo');
-const { initDB } = require('./initialize/LoadDB');
 const { getEntityData } = require('./entities/QRYtypes');
 const { getDistinct } = require('./entities/helpers');
 const config = require('../config/config.json');
-
-let client; // the redis client, need this global for the other functions to re-use
-let clientActive = false;
-let localMode = false;
 
 const { connect } = require('./connect/mongoConnect');
 
@@ -34,77 +27,7 @@ const searchableSet = [
 ];
 
 
-/** Redis Cache
- * 
- */
-const startClient = (userID) => {
-  let startclient;
-  if (localMode) {
-    startclient = redis.createClient();
-  } else {
-    startclient = redis.createClient(
-      config.database.redis.port
-    )
-  }
-  setListener(startclient, userID);
-  return startclient;
-};
 
-const setListener = (connection, userID) => {
-  connection.on('end', () => {
-    console.log('connection closed');
-    clientActive = false;
-  });
-  connection.on('connect', () => {
-    console.log('connection opened');
-    clientActive = true;
-    client.multi([['client', 'setname', `user${userID}`], ['client', 'list']]).exec()
-      .then(result => console.log('new user added:%s\nconnected users:\n %s', userID, result[1].match(/name=\w+/g).join('\n')))
-      .catch(err => console.error(err));
-  });
-  connection.on('error', (err) => {
-    console.error('connection error !', err)
-  });
-}
-
-const cache = (req, res, next) => {
-  if (req.method === 'GET') {
-    if (!clientActive) client = startClient(req.query.user);
-    const table = decodeURIComponent(req.query.table);
-    if (table === undefined) next();
-    client.get(table, function (err, data) {
-      if (err) throw err;
-
-      if (data !== null) {
-        res.json(JSON.parse(data));
-      } else {
-        next();
-      }
-    });
-  } else if (req.method === 'POST') {
-    const request = JSON.parse(req.body);
-    if (!clientActive) client = startClient(request.user);
-    const title = `${request.query.value[0] === '' ? `${req.path}:${request.query.field}` : `${req.path}:${request.query.field}:${request.query.value}`}`;
-    console.info('looking for cache entry for %s', title);
-    client.get(title, function (err, data) {
-      if (err) throw err;
-      if (data !== null) {
-        console.info('cache entry found');
-        res.json(JSON.parse(data));
-      } else {
-        console.info('cache miss, data returned', data);
-        next();
-      }
-    })
-  }
-}
-
-const setCache = (user, table, value) => {
-  if (!clientActive) client = startClient(user);
-  return client.set(decodeURIComponent(table), JSON.stringify(value), 'EX', config.database.redis.expiry);
-}
-
-/** end REDIS cache */
 
 router.use(bodyParser.text());
 
@@ -125,37 +48,35 @@ router.post('/run', function (req, res, next) {
 });
 
 // gets a list of fields for querying, ** cache disabled **
-router.get('/fields', function (req, res, next) {
-  return connect()
-    .then(database => {
-      db = database;
-      collection = db.collection('byTrial');
-      return collection.findOne();
-    })
-    .then(sample => Object.keys(sample).map(item => (item.includes('Petitioner') || item.includes('PatentOwner'))
+router.get('/fields', async (req, res, next) => {
+  try {
+    db = await connect();
+    collection = db.collection('byTrial');
+    const sample = await collection.findOne();
+    console.log(sample);
+    res.json(Object.keys(sample).map(item => (item.includes('Petitioner') || item.includes('PatentOwner'))
       ? Object.keys(sample[item][0]).map(subitem => `${item}.${subitem}`)
       : item)
-      .reduce((a, b) => a.concat(b), []))
-    .then(result => {
-      return res.json(result);
-      // return setCache(req.query.user, 'fields', result);
-    })
-    .then(status => console.info(status.statusCode))
-    .catch(err => console.error(err));
+      .reduce((a, b) => a.concat(b), []));
+    //setCache(req.query.user, 'fields', result);
+    console.info('OK');
+  } catch (err) {
+    console.error(err)
+  }
 });
 
 // gets a list of tables for querying
-router.get('/tables', function (req, res, next) {
+router.get('/tables', async (req, res, next) => {
   // TODO: update this to handle general queries (field == value)
   // TODO: So given a field, return the list of allowable values for graphing
   // TODO: ie, FWDStatus: 
   // TODO: Call getEntityData to get a list of entity types (npe, etc)
-  res.json(searchableSet)
+  await res.json(searchableSet);
   // .catch(err => console.error(err));
 });
 
-// get a list of unique items for the selected table
-router.post('/chartvalues', cache, (req, res, next) => {
+// get a list of unique items for the selected table ** cache disabled
+router.post('/chartvalues', (req, res, next) => {
   const request = JSON.parse(req.body);
   console.log('received request for values in %j', request.query);
   connect()
@@ -167,13 +88,13 @@ router.post('/chartvalues', cache, (req, res, next) => {
     .then(() => getDistinct(collection, request.query.field))
     .then(result => {
       res.json(result);
-      setCache(request.user, `${req.path}:${request.query.field}`, result);
+      // setCache(request.user, `${req.path}:${request.query.field}`, result);
     })
     .catch(err => console.error(err))
 })
 
-// survival data used in graphs - cached
-router.post('/survival', cache, function (req, res, next) {
+// survival data used in graphs - ** cache disabled
+router.post('/survival', function (req, res, next) {
   const request = JSON.parse(req.body);
   connect()
     .then(database => {
@@ -188,14 +109,14 @@ router.post('/survival', cache, function (req, res, next) {
     .then(result => {
       res.json(result);
       console.log(result.title);
-      return setCache(request.user, `${req.path}:${result.title}`, result);
+      return 'OK'; //setCache(request.user, `${req.path}:${result.title}`, result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err))
 });
 
-// survival data used in stacked area graphs - cached
-router.post('/survivalarea', cache, function (req, res, next) {
+// survival data used in stacked area graphs - ** cache disabled
+router.post('/survivalarea', function (req, res, next) {
   const request = JSON.parse(req.body);
   connect()
     .then(database => {
@@ -210,7 +131,7 @@ router.post('/survivalarea', cache, function (req, res, next) {
     .then(result => {
       res.json(result);
       console.log(result.title);
-      return setCache(request.user, `${req.path}:${result.title}`, result);
+      return 'OK'; //setCache(request.user, `${req.path}:${result.title}`, result);
     })
     .then(status => console.info(status))
     .catch(err => console.error(err))
@@ -228,14 +149,6 @@ router.post('/multiedit', function (req, res, next) {
   // the newValue as third argument
 });
 
-router.get('/survivaldetail', (req, res, next) => {
-  if (!clientActive) client = startClient(req.query.user);
-  getDetailTable(client, decodeURIComponent(req.query.table), req.query.cursor, req.query.user)
-    .then(patentList => {
-      return res.json(patentList);
-    })
-    .catch(err => console.error(err))
-});
 
 module.exports = router;
 
