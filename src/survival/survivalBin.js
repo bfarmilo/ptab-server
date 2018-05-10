@@ -1,5 +1,14 @@
 const { levelBins } = require('../../config/config.json');
 
+// need a version of this where 'instituted' and 'invalid' are an array of numbers
+// and returns an object { level, result, Array[claimnumbers]}
+
+// for killed -- looks like you can just count 'Unpatentable'
+// except Waiver Filed need to move all calims to 'Unpatentable'
+// for impaired -- just count 'ClaimsInstituted' where Terminated-Settled
+// for weakened -- also ClaimsInstituted
+// make a list of 'Survived'
+
 const survivalStatus = (status, fwdStatus, instituted, invalid) => {
   if (status === 'Terminated-Adverse Judgment'
     || (status === 'FWD Entered' && invalid)

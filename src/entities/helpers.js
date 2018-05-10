@@ -4,6 +4,7 @@
  * @public
  */
 
+const config = require('../../config/config.json');
 /**
  * extractTypes takes a single party (Petitioner or Patent Owner) and returns the entity name
  * and entity type (npe, etc.). If type not included return 'unknown'
@@ -21,11 +22,11 @@ const extractTypes = (entity, index, party) => {
     type: partyComponents[2] //,
     //id: index
   } : {
-    //party,
-    name: entity,
-    type: "unknown" // ,
-    //id: index
-  }
+      //party,
+      name: entity,
+      type: "unknown" // ,
+      //id: index
+    }
 }
 
 
@@ -71,25 +72,47 @@ const getDistinct = (collection, field) => {
     aggregation.push({ $unwind: '$checkField' })
   }
   return collection.aggregate(
-      aggregation.concat([{
-          $group: {
-            _id: 'checkField',
-            result: { $addToSet: '$checkField' }
-          }
-        },
-        { $unwind: '$result' },
-        { $sort: { result: 1 } }
-      ])
-    ).toArray()
+    aggregation.concat([{
+      $group: {
+        _id: 'checkField',
+        result: { $addToSet: '$checkField' }
+      }
+    },
+    { $unwind: '$result' },
+    { $sort: { result: 1 } }
+    ])
+  ).toArray()
     .then(result => Promise.resolve({
       [field]: result.map(item => item.result.toString())
     }))
     .catch(err => Promise.reject(err));
 }
 
+/** writeNextBatch is a helpful recursive function that writes 50 records at a time
+ * @param {mongoDB} db - the mongodb instance
+ * @param {string} collection - the collection to write to
+ * @param {number} cursor - the start of the chunk of records to write
+ * @param {Array<Object>} data - an array of documents
+ */
+const writeNextBatch = async (db, collection, cursor, data) => {
+  try {
+    if (cursor >= data.length) {
+      return Promise.resolve('done');
+    }
+    console.log('adding records %d-%d', cursor, cursor + config.maxWriteRecords >= data.length ? data.length : cursor + config.maxWriteRecords);
+    console.log('writing to collection %s', collection);
+    console.log('writing data %j', data.slice(cursor, + cursor));
+    await db.collection(collection).insert(data.slice(cursor, config.maxWriteRecords + cursor));
+    return await writeNextBatch(db, collection, cursor + config.maxWriteRecords, data);
+  } catch (err) {
+    return Promise.reject(err)
+  }
+}
+
 module.exports = {
   extractTypes,
   extractMultiples,
   flatten,
-  getDistinct
+  getDistinct,
+  writeNextBatch
 }

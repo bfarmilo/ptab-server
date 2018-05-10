@@ -4,11 +4,11 @@ const config = require('../../config/config.json');
   // db -> the mongo db instance
   // query -> 2-element array of {field, value} objects used to compose the query
   // cursor -> the last cursor for the scan
-  // target -> the name of the table to search or 'all' TODO: use this to cache the results
+  // target -> the name of the collection to search or 'all' TODO: use this to cache the results
   // returns {cursor: the next cursor, count: num records returned, totalCount: total num of matching records, data:the table data}
 */
 
-const lookUp = (db, query, cursor, target = 'all') => {
+const lookUp = (db, query, cursor, target) => {
   let totalCount = 0;
   // simple query at this point -- just convert value into a regex and hence match anywhere
   // first decide if we are searching for a field within an array
@@ -21,15 +21,15 @@ const lookUp = (db, query, cursor, target = 'all') => {
       return { [item.field]: { $regex: new RegExp(item.value, 'g') } }
     })
   }
-  console.log('querying database with %j', queryMongo.$and);
+  console.log('querying %s with %j', target, queryMongo.$and);
   // quickly count the matches
   //testing
-  return db.collection('byTrial').find(queryMongo).count()
+  return db.collection(target).find(queryMongo).count()
     .then(numRecords => {
       console.log(numRecords);
       totalCount = numRecords;
       // note -- if Petitioner, PatentOwner, AllJudges, need to unwind first, probably convert to aggregation mode !!
-      return db.collection('byTrial')
+      return db.collection(target)
         .find(queryMongo)
         .sort({ DateFiled: -1, claimIdx: 1 })
         .skip(cursor)

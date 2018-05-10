@@ -8,11 +8,10 @@
   },
   "main": "server.js",
   "scripts": {
-    "cosmos": "docker start cosmosdb&& for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' cosmosdb`) do @set MONGOIP=%a&& set port=3000&& node server.js -dev",
-    "loadCosmos": "docker start cosmosdb&& for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' cosmosdb`) do @set MONGOIP=%a&& set port=3000&&node ./src/initialize/loadMongo.test.js",
-    "test": "docker start ptab-mongo && for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ptab-mongo`) do @set MONGOIP=%a&& set port=3000&&node ./src/initialize/loadMongo.test.js",
-    "start": "node server.js",
-    "startlocal": "docker start ptab-mongo && for /f \"usebackq delims=\" %a in (`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ptab-mongo`) do @set MONGOIP=%a&& set port=3000&& node server.js -dev"
+    "cosmos": "set MODE=docker&& set port=3000&& node server.js -dev",
+    "loadCosmos": "set MODE=docker&& set port=3000&&node ./src/initialize/loadMongo.test.js",
+    "testUpdateNew": "set MODE=docker&& set port=3000&&node ./src/update/updateNew.test.js",
+    "start": "node server.js"
   },
   "author": "",
   "license": "ISC",

@@ -38,7 +38,7 @@ router.post('/run', function (req, res, next) {
   return connect()
     .then(database => {
       db = database;
-      return lookUp(db, request.query, request.cursor)
+      return lookUp(db, request.query, request.cursor, request.collection ? request.collection : 'byTrial')
     })
     .then(result => {
       console.log('%d results returned', result.count)

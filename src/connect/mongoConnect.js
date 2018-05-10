@@ -1,25 +1,49 @@
 const MongoClient = require('mongodb').MongoClient
+const spawn = require('child_process').spawn;
 
-// connection string syntax is mongodb://username:password@host:port/[database]?ssl=true
-// note MONGOIP comes with single quotes around the IP address so we need to strip those off
+// start powershell and event listeners
+let url = 'false';
 
-let url = process.env.MONGOIP
-  ? `mongodb://localhost:C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==@${process.env.MONGOIP.replace(/'/g, '')}:10255/admin?ssl=true`
-  : require('../../config/config.json').database.mongoUrl;
+if (process.env.MODE === 'docker') {
+  // initialize container connection parameters
+  let container = 'cosmosdb';
+  const child = spawn("powershell.exe", [`docker inspect --format '{{.NetworkSettings.Networks.nat.IPAddress}}' ${container}`]);
+  child.stdout.on("data", data => {
+    const containerIP = data.toString().split(/\n/g)[0];
+    url = `mongodb://localhost:C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==@${containerIP}:10255/admin?ssl=true`;
+  });
+  child.stderr.on("data", error => { throw (error) });
+  child.stdin.end(); //end input
+} else {
+  url = require('../../config/config.json').database.mongoUrl;
+}
 
-console.info('connecting to mongo instance at %s', url);
+const connect = async () => {
 
-const connect = () => MongoClient.connect(url)
-  .then(database => {
-    console.info("connected to server");
-    return Promise.resolve(database);
-  })
-  .catch(err => {
+  const mongoConnect = () => {
+    console.info('connecting to mongo instance at %s', url);
+    return MongoClient.connect(url);
+  }
+
+  const delay = new Promise(resolve => setTimeout(resolve, 1000));
+
+  try {
+    // connection string syntax is mongodb://username:password@host:port/[database]?ssl=true
+    // hack here to let powershell get the IP address before making the connection
+    // console.log(url);
+    if (url) {
+      await delay;
+      return mongoConnect();
+    } else {
+      return mongoConnect();
+    }
+  } catch (err) {
     return Promise.reject(err);
-  })
+  }
+}
 
 
 module.exports = {
-    connect
+  connect
 }
 
