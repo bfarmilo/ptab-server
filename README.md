@@ -1,6 +1,6 @@
 # PTAB Server
 
-An API endpoint which acts as middleware between a Redis store of PTAB IPR data and the ptab-analysis client.
+An API endpoint which acts as middleware between a MongoDB store of PTAB IPR data (with a Redis cache) and the ptab-analysis client.
 
 ## Table of Contents
 
